@@ -1,0 +1,27 @@
+1727166315278	Rename field 'minXPosition'
+1727166334060	Rename field 'maxXPosition'
+1727166348599	Rename field 'minYPosition'
+1727166367660	Rename field 'maxYPosition'
+1727166380443	Rename field 'minZPosition'
+1727186557015	Move compilation unit
+1727186587711	Move compilation unit
+1727186611186	Move compilation unit
+1727186615411	Move compilation unit
+1727186640466	Move compilation unit
+1727321407713	Rename field 'pixelValue'
+1727321765648	Rename field 'lightingIntensity'
+1727321819580	Rename local variable 'meanPixelLighthing'
+1727324901803	Rename local variable 'meanlightingIntensity0to255'
+1727325066165	Rename method 'barycentricInterpolation_f'
+1727325103492	Rename method 'barycentricInterpolation_v2'
+1727325129515	Rename method 'barycentricInterpolation_v3'
+1727325169804	Rename method 'barycentricInterpolation_color'
+1727354805997	Rename package 'rasterization_app'
+1727359285505	Copy compilation units
+1727359310127	Copy compilation unit
+1727359316883	Delete element
+1727359343754	Copy compilation units
+1727359495956	Delete element
+1727369210158	Copy compilation units
+1727369225503	Copy compilation units
+1727369287389	Copy files

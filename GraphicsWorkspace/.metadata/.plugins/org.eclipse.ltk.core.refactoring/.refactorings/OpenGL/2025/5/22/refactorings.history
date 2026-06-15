@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;shader&apos; in &apos;app_interface.OpenGlUtilities.prepareShader(...)&apos; to &apos;shaderFilename&apos;&#x0D;&#x0A;- Original project: &apos;OpenGL&apos;&#x0D;&#x0A;- Original element: &apos;app_interface.OpenGlUtilities.prepareShader(int, String).shader&apos;&#x0D;&#x0A;- Renamed element: &apos;shader&apos;&#x0D;&#x0A;- Update references to refactored element" description="Rename local variable &apos;shader&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/src&lt;app_interface{OpenGlUtilities.java[OpenGlUtilities~prepareShader~I~QString;@shader!3683!3695!3690!3695!QString;!0!true" name="shaderFilename" references="true" stamp="1748189995743" version="1.0"/>
+</session>

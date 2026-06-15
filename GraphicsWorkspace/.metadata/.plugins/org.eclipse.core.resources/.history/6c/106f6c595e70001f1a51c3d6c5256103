@@ -1,0 +1,916 @@
+package rasterization_app;
+
+import java.nio.IntBuffer;
+import java.nio.file.Paths;
+
+import javafx.animation.AnimationTimer;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox; // added
+import javafx.scene.control.Label;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelBuffer;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+public class Interface extends Application {
+	//1. Constants
+	public final int WIN_WIDTH                                = InterfaceDefaultParams.WIN_SIZE;
+	public final int WIN_HEIGHT                               = InterfaceDefaultParams.WIN_SIZE;
+	public final int INITIAL_CAMERA_DISTANCE_FROM_AXIS_CENTER = InterfaceDefaultParams.INITIAL_CAMERA_DISTANCE_FROM_AXIS_CENTER;
+	public final double CAMERA_MAX_VERTICAL_ANGLE             = InterfaceDefaultParams.CAMERA_MAX_VERTICAL_ANGLE;
+
+	//Unsaved parameters - parameters that start with their default value and can change 
+    //  during program execution but are not saved between runs.
+	private double cameraRadius           = InterfaceDefaultParams.cameraRadius;
+	private double[] cameraPos            = InterfaceDefaultParams.cameraPos;
+	private double[] cameraLookAtCenter   = InterfaceDefaultParams.cameraLookAtCenter; 
+	private double[] cameraUp             = InterfaceDefaultParams.cameraUp;
+	private double cameraAngleHorizontal  = InterfaceDefaultParams.cameraAngleHorizontal;
+	private double cameraAngleVertical    = InterfaceDefaultParams.cameraAngleVertical;
+
+	private double horizontalFOV          = InterfaceDefaultParams.horizontalFOV;
+
+	private double modelScale             = InterfaceDefaultParams.modelScale;
+	private double[] modelTranslateVector = InterfaceDefaultParams.modelTranslateVector;
+
+	private double lighting_Diffuse       = InterfaceDefaultParams.lighting_Diffuse;
+	private double lighting_Specular      = InterfaceDefaultParams.lighting_Specular;
+	private double lighting_Ambient       = InterfaceDefaultParams.lighting_Ambient;
+	private double lighting_sHininess     = InterfaceDefaultParams.lighting_sHininess;
+	private double[] lightPosition        = InterfaceDefaultParams.lightPosition;
+
+	
+	
+	private InterfaceSavedParams savedParams = new InterfaceSavedParams();
+    
+	private IntBuffer[] intBuffers = new IntBuffer[2];
+	private PixelBuffer<IntBuffer>[] pixelBuffers = new PixelBuffer[2];
+	private int frontBufferIndex = 0;
+	private int backBufferIndex = 1;
+	private WritableImage writableImage;
+    private ImageView imageView;
+
+//  ByteBuffer buffer = ; )
+//  IntBuffer intBuffer = ByteBuffer.allocate(width * height * 4).asIntBuffer(); //// 4 bytes per pixel (ARGB
+    
+//  // Create a buffer to hold the pixel data
+//  ByteBuffer buffer = ByteBuffer.allocate(width * height * 4); // 4 bytes per pixel (ARGB)
+//  IntBuffer intBuffer = buffer.asIntBuffer();
+//
+//  // Create a PixelBuffer using the buffer
+//  javafx.scene.image.PixelBuffer<ByteBuffer> pixelBuffer = new javafx.scene.image.PixelBuffer<>(
+//          width, height, buffer, PixelFormat.getIntArgbPreInstance()
+//  );
+//
+//  // Create a WritableImage using the PixelBuffer
+//  WritableImage writableImage = new WritableImage(pixelBuffer);
+//  ImageView imageView = new ImageView(writableImage);
+//
+//  // Example: Fill buffer with some pattern
+//  fillBufferWithPattern(intBuffer, width, height);
+//
+//  Scene scene = new Scene(imageView);
+//  primaryStage.setScene(scene);
+//  primaryStage.setTitle("PixelBuffer Example");
+//  primaryStage.show();
+//}
+//
+//private void fillBufferWithPattern(IntBuffer intBuffer, int width, int height) {
+//  for (int y = 0; y < height; y++) {
+//      for (int x = 0; x < width; x++) {
+//          int value = (x ^ y) & 0xFF; // Example pattern
+//          int argb = (255 << 24) | (value << 16) | (value << 8) | value;
+//          intBuffer.put(y * width + x, argb);
+//      }
+//  }
+//}
+    
+    
+    private double lastCursorX, lastCursorY;
+    
+    //to remove
+    private int crossX = WIN_WIDTH/2, crossY = WIN_HEIGHT/2;
+    //to remove
+    
+    Label labelInfo1;
+    Label labelInfo2;
+    
+    Stage primaryStage;
+    
+    Model model = new YourModel();
+
+    public void start(Stage primaryStage) throws Exception {
+        
+        //creating the application window layout
+        //////////////////////////////////////////////////////
+    	
+        // Buttons Dropdown menus row
+        Label labelOpen = new Label(" "); // added
+        Button buttonOpen = new Button("Open...");
+        VBox vboxButtonOpen = new VBox();
+        vboxButtonOpen.getChildren().addAll(labelOpen, buttonOpen);
+
+        Label labelSave = new Label(" "); // added
+        Button buttonSave = new Button("Save...");
+        VBox vboxSave = new VBox();
+        vboxSave.getChildren().addAll(labelSave, buttonSave);
+
+    	Label labelProjType = new Label("Projection Type:"); // added
+        ComboBox<ProjectionTypeEnum> comboProjType = new ComboBox<>(); // added
+        comboProjType.getItems().addAll(ProjectionTypeEnum.values()); // added
+        comboProjType.setValue(savedParams.getProjectionType()); // added
+        VBox vboxProj = new VBox();
+        vboxProj.getChildren().addAll(labelProjType, comboProjType);
+
+        Label labelDispType = new Label("Display Type:"); // added
+        ComboBox<DisplayTypeEnum> comboDispType = new ComboBox<>(); // added
+        comboDispType.getItems().addAll(DisplayTypeEnum.values()); // added
+        comboDispType.setValue(savedParams.getDisplayType()); // added
+        VBox vboxDisp = new VBox();
+        vboxDisp.getChildren().addAll(labelDispType, comboDispType);
+
+        Label labelDispNormals = new Label("Display normals:"); // added
+        ComboBox<String> comboDispNormals = new ComboBox<>(); // added
+        comboDispNormals.getItems().addAll("True", "False"); // added
+        comboDispNormals.setValue(savedParams.isDisplayNormals() ? "True" : "False"); // added
+        VBox vboxNormals = new VBox();
+        vboxNormals.getChildren().addAll(labelDispNormals, comboDispNormals);
+        
+        HBox dropdownRow = new HBox(); // added
+        dropdownRow.getChildren().addAll(vboxButtonOpen,vboxSave,vboxProj, vboxDisp, vboxNormals); // added
+        
+        //Image
+        intBuffers[0] = IntBuffer.allocate(WIN_WIDTH * WIN_HEIGHT);
+        intBuffers[1] = IntBuffer.allocate(WIN_WIDTH * WIN_HEIGHT);
+        pixelBuffers[0] = new PixelBuffer<>(WIN_WIDTH, WIN_HEIGHT, intBuffers[0], PixelFormat.getIntArgbPreInstance());
+        pixelBuffers[1] = new PixelBuffer<>(WIN_WIDTH, WIN_HEIGHT, intBuffers[1], PixelFormat.getIntArgbPreInstance());
+        writableImage = new WritableImage(pixelBuffers[0]);        
+        imageView = new ImageView(writableImage); // Initially set buffer1
+
+    	//labels 
+        labelInfo1 = new Label("starting...");
+        labelInfo2 = new Label("starting...");
+        
+        //combining button and bombobox row with image and lables
+        VBox vbox = new VBox();
+        vbox.getChildren().addAll(dropdownRow, imageView, labelInfo1, labelInfo2);
+
+        //creating scene setting the stage
+        Scene scene = new Scene(vbox);
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("My JavaFX App");
+        primaryStage.show();
+        scene.getRoot().requestFocus();
+
+        // Add event listeners
+        //////////////////////////////////////////////////////
+        scene.setOnKeyPressed(this::handleKeyPressed);
+        scene.setOnMousePressed(this::handleMousePress);
+        scene.setOnMouseDragged(this::handleMouseDragged);
+
+        // Event handlers for dropdowns
+        comboProjType.setOnAction(e -> { // added
+            savedParams.setProjectionType(comboProjType.getValue()); // Assuming setter exists in params // added
+        	model.setRenderingType(savedParams.getProjectionType(), savedParams.getDisplayType(), savedParams.isDisplayNormals());
+        }); // added
+
+        comboDispType.setOnAction(e -> { // added
+            savedParams.setDisplayType(comboDispType.getValue()); // Assuming setter exists in params // added
+        	model.setRenderingType(savedParams.getProjectionType(), savedParams.getDisplayType(), savedParams.isDisplayNormals());
+        }); // added
+
+        comboDispNormals.setOnAction(e -> { // added
+            savedParams.setDisplayNormals(Boolean.parseBoolean(comboDispNormals.getValue())); // Assuming setter exists in params // added
+        	model.setRenderingType(savedParams.getProjectionType(), savedParams.getDisplayType(), savedParams.isDisplayNormals());
+        }); // added
+
+        buttonOpen.setOnAction(event -> {
+            String filePath = Utilities.openFileChooser(primaryStage, "obj", Paths.get(savedParams.getModelFileName()).getParent().toString());
+        	if(filePath!=null) {
+        		model.load(filePath);
+        		savedParams.setModelFileName(filePath);
+        	}
+        });
+        buttonSave.setOnAction(event -> {
+        	String filePath = Utilities.saveFileChooser(primaryStage, "bmp", savedParams.getSaveImagePath());
+        	if(filePath!=null) {
+        		Utilities.saveImageAsBMP(writableImage, filePath);
+//        		Utilities.saveImageAsBMP(bufferForDisplay, filePath);
+        		savedParams.setSaveImagePath(Paths.get(filePath).getParent().toString());
+        	}
+        });
+        
+        // Create and start the animation timer
+        AnimationTimer timer = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                updateImage();
+            }
+        };
+        timer.start();
+        
+        model.load(savedParams.getModelFileName());
+    }
+
+    TimeMeasurement tm = new TimeMeasurement(100, 10);
+
+    private void updateImage() {
+//        tm.start();
+        model.render(intBuffers[backBufferIndex],WIN_WIDTH,WIN_HEIGHT);
+
+        //to remove
+        drawCross(intBuffers[backBufferIndex]);
+        //to remove
+//        tm.stop();
+//        System.out.println(tm.getLastMeasurement());
+
+        // Swap buffers after drawing is complete
+//        WritableImage temp = bufferForDisplay;
+//        bufferForDisplay = bufferForWriting;
+//        bufferForWriting = temp;
+
+        //updating display buffer
+//        imageView.setImage(bufferForWriting);
+//      imageView.setImage(bufferForDisplay);
+        
+    	pixelBuffers[backBufferIndex].updateBuffer(b -> null);
+    
+    	
+        Platform.runLater(() -> labelInfo1.setText(desciptionString1()));
+        Platform.runLater(() -> labelInfo2.setText(desciptionString2()));
+    }    
+    
+    //to remove
+    private void writingPixel(IntBuffer intBuffer, int x, int y, int r, int g, int b) {
+        int argb = (255 << 24) | (r << 16) | (g << 8) | b;
+        intBuffer.put(y * WIN_WIDTH + x, argb);
+    }
+
+    private void drawCross(IntBuffer intBuffer) {
+        int width = WIN_WIDTH;
+        int height = WIN_HEIGHT;
+
+        int crossR = 10;
+        int minCrossX = Math.max(0, crossX - crossR);
+        int maxCrossX = Math.min(crossX + crossR, width);
+        for (int i = minCrossX; i < maxCrossX; i++)
+            writingPixel(intBuffer, i, crossY, 255, 128, 128);
+        int minCrossY = Math.max(0, crossY - crossR);
+        int maxCrossY = Math.min(crossY + crossR, height);
+        for (int i = minCrossY; i < maxCrossY; i++)
+            writingPixel(intBuffer, crossX, i, 255, 128, 128);
+    }
+    //to remove
+
+    private void handleKeyPressed(KeyEvent event) {
+        KeyCode keyCode = event.getCode();
+        if (keyCode == KeyCode.UP) {
+            crossY -= 1;
+            modelTranslateVector[2] += 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.DOWN) {
+            crossY += 1;
+            modelTranslateVector[2] -= 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.LEFT) {
+            crossX -= 1;
+            modelTranslateVector[0] -= 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.RIGHT) {
+            crossX += 1;
+            modelTranslateVector[0] += 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.ADD) {
+            modelScale+=0.1;
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.SUBTRACT) {
+            modelScale-=0.1;
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.D) {
+            lighting_Diffuse+=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.C) {
+            lighting_Diffuse-=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.S) {
+            lighting_Specular+=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.X) {
+            lighting_Specular-=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.A) {
+            lighting_Ambient+=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.Z) {
+            lighting_Ambient-=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.H) {
+            lighting_sHininess+=1;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.N) {
+            lighting_sHininess-=1;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        }
+    }
+
+    private void handleMousePress(MouseEvent event) {
+        lastCursorX = event.getX();
+        lastCursorY = event.getY();
+    }
+
+    private void handleMouseDragged(MouseEvent event) {
+        double curCursorX = event.getX();
+        double curCursorY = event.getY();
+        double deltaX = curCursorX - lastCursorX; 
+        double deltaY = curCursorY - lastCursorY; 
+
+        final double CORSER_MOVEMENT_DIVISION_CONSTANT = 5;
+        cameraAngleHorizontal += deltaX/CORSER_MOVEMENT_DIVISION_CONSTANT;
+        cameraAngleVertical   += deltaY/CORSER_MOVEMENT_DIVISION_CONSTANT;
+        calcCameraPos();
+    	model.setCameraLocation(cameraPos, cameraLookAtCenter, cameraUp, horizontalFOV);
+        
+    	
+        //to remove
+        crossX += deltaX;
+        crossY += deltaY;
+        crossX = Math.max(0,Math.min(crossX, WIN_WIDTH-1));
+        crossY = Math.max(0,Math.min(crossY, WIN_HEIGHT-1));
+        lastCursorX = curCursorX; 
+        lastCursorY = curCursorY;
+        //to remove
+        
+        
+//      updateImage();
+    }
+
+	private void calcCameraPos() {
+		if (cameraAngleVertical > CAMERA_MAX_VERTICAL_ANGLE)
+			cameraAngleVertical = CAMERA_MAX_VERTICAL_ANGLE;
+		if (cameraAngleVertical < -CAMERA_MAX_VERTICAL_ANGLE)
+			cameraAngleVertical = -CAMERA_MAX_VERTICAL_ANGLE;
+
+		cameraAngleHorizontal = (cameraAngleHorizontal + 360) % 360;
+
+		cameraPos[0] = cameraRadius * Math.sin((double)(cameraAngleVertical + 90) * Math.PI / 180) * Math.cos((double)(cameraAngleHorizontal + 90) * Math.PI / 180);
+		cameraPos[2] = cameraRadius * Math.sin((double)(cameraAngleVertical + 90) * Math.PI / 180) * Math.sin((double)(cameraAngleHorizontal + 90) * Math.PI / 180);
+		cameraPos[1] = cameraRadius * Math.cos((double)(cameraAngleVertical + 90) * Math.PI / 180);
+	}
+
+	private String desciptionString1() {
+		return String.format(
+				"Scale:%.1f , Translate: (%.1f,%.1f,%.1f), Camera angles:(%.1f,%.1f) position:(%.1f,%.1f,%.1f) ",
+				modelScale, modelTranslateVector[0], modelTranslateVector[1], modelTranslateVector[2], cameraAngleHorizontal, cameraAngleVertical,
+				cameraPos[0], cameraPos[1], cameraPos[2]);
+	}
+
+	private String desciptionString2() {
+		return String.format("Lighting reflection - Diffuse:%1.2f, Specular:%1.2f, Ambient:%1.2f, sHininess:%1.2f",
+				lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess);
+	}
+
+	
+
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
+
+
+
+/*
+package rasterization_app;
+
+import java.nio.IntBuffer;
+import java.nio.file.Paths;
+
+import javafx.animation.AnimationTimer;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox; // added
+import javafx.scene.control.Label;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelBuffer;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+public class Interface extends Application {
+	//1. Constants
+	public final int WIN_WIDTH                                = InterfaceDefaultParams.WIN_SIZE;
+	public final int WIN_HEIGHT                               = InterfaceDefaultParams.WIN_SIZE;
+	public final int INITIAL_CAMERA_DISTANCE_FROM_AXIS_CENTER = InterfaceDefaultParams.INITIAL_CAMERA_DISTANCE_FROM_AXIS_CENTER;
+	public final double CAMERA_MAX_VERTICAL_ANGLE             = InterfaceDefaultParams.CAMERA_MAX_VERTICAL_ANGLE;
+
+	//Unsaved parameters - parameters that start with their default value and can change 
+    //  during program execution but are not saved between runs.
+	private double cameraRadius           = InterfaceDefaultParams.cameraRadius;
+	private double[] cameraPos            = InterfaceDefaultParams.cameraPos;
+	private double[] cameraLookAtCenter   = InterfaceDefaultParams.cameraLookAtCenter; 
+	private double[] cameraUp             = InterfaceDefaultParams.cameraUp;
+	private double cameraAngleHorizontal  = InterfaceDefaultParams.cameraAngleHorizontal;
+	private double cameraAngleVertical    = InterfaceDefaultParams.cameraAngleVertical;
+
+	private double horizontalFOV          = InterfaceDefaultParams.horizontalFOV;
+
+	private double modelScale             = InterfaceDefaultParams.modelScale;
+	private double[] modelTranslateVector = InterfaceDefaultParams.modelTranslateVector;
+
+	private double lighting_Diffuse       = InterfaceDefaultParams.lighting_Diffuse;
+	private double lighting_Specular      = InterfaceDefaultParams.lighting_Specular;
+	private double lighting_Ambient       = InterfaceDefaultParams.lighting_Ambient;
+	private double lighting_sHininess     = InterfaceDefaultParams.lighting_sHininess;
+	private double[] lightPosition        = InterfaceDefaultParams.lightPosition;
+
+	
+	
+	private InterfaceSavedParams savedParams = new InterfaceSavedParams();
+    
+	private IntBuffer intBuffer;
+	private PixelBuffer<IntBuffer> pixelBuffer;
+	private WritableImage bufferForWriting;
+    //private WritableImage bufferForDisplay = new WritableImage(WIN_WIDTH, WIN_HEIGHT);
+    private ImageView imageView;
+
+//  ByteBuffer buffer = ; )
+//  IntBuffer intBuffer = ByteBuffer.allocate(width * height * 4).asIntBuffer(); //// 4 bytes per pixel (ARGB
+    
+//  // Create a buffer to hold the pixel data
+//  ByteBuffer buffer = ByteBuffer.allocate(width * height * 4); // 4 bytes per pixel (ARGB)
+//  IntBuffer intBuffer = buffer.asIntBuffer();
+//
+//  // Create a PixelBuffer using the buffer
+//  javafx.scene.image.PixelBuffer<ByteBuffer> pixelBuffer = new javafx.scene.image.PixelBuffer<>(
+//          width, height, buffer, PixelFormat.getIntArgbPreInstance()
+//  );
+//
+//  // Create a WritableImage using the PixelBuffer
+//  WritableImage writableImage = new WritableImage(pixelBuffer);
+//  ImageView imageView = new ImageView(writableImage);
+//
+//  // Example: Fill buffer with some pattern
+//  fillBufferWithPattern(intBuffer, width, height);
+//
+//  Scene scene = new Scene(imageView);
+//  primaryStage.setScene(scene);
+//  primaryStage.setTitle("PixelBuffer Example");
+//  primaryStage.show();
+//}
+//
+//private void fillBufferWithPattern(IntBuffer intBuffer, int width, int height) {
+//  for (int y = 0; y < height; y++) {
+//      for (int x = 0; x < width; x++) {
+//          int value = (x ^ y) & 0xFF; // Example pattern
+//          int argb = (255 << 24) | (value << 16) | (value << 8) | value;
+//          intBuffer.put(y * width + x, argb);
+//      }
+//  }
+//}
+    
+    
+    private double lastCursorX, lastCursorY;
+    
+    //to remove
+    private int crossX = WIN_WIDTH/2, crossY = WIN_HEIGHT/2;
+    //to remove
+    
+    Label labelInfo1;
+    Label labelInfo2;
+    
+    Stage primaryStage;
+    
+    Model model = new YourModel();
+
+    public void start(Stage primaryStage) throws Exception {
+        
+        //creating the application window layout
+        //////////////////////////////////////////////////////
+    	
+        // Buttons Dropdown menus row
+        Label labelOpen = new Label(" "); // added
+        Button buttonOpen = new Button("Open...");
+        VBox vboxButtonOpen = new VBox();
+        vboxButtonOpen.getChildren().addAll(labelOpen, buttonOpen);
+
+        Label labelSave = new Label(" "); // added
+        Button buttonSave = new Button("Save...");
+        VBox vboxSave = new VBox();
+        vboxSave.getChildren().addAll(labelSave, buttonSave);
+
+    	Label labelProjType = new Label("Projection Type:"); // added
+        ComboBox<ProjectionTypeEnum> comboProjType = new ComboBox<>(); // added
+        comboProjType.getItems().addAll(ProjectionTypeEnum.values()); // added
+        comboProjType.setValue(savedParams.getProjectionType()); // added
+        VBox vboxProj = new VBox();
+        vboxProj.getChildren().addAll(labelProjType, comboProjType);
+
+        Label labelDispType = new Label("Display Type:"); // added
+        ComboBox<DisplayTypeEnum> comboDispType = new ComboBox<>(); // added
+        comboDispType.getItems().addAll(DisplayTypeEnum.values()); // added
+        comboDispType.setValue(savedParams.getDisplayType()); // added
+        VBox vboxDisp = new VBox();
+        vboxDisp.getChildren().addAll(labelDispType, comboDispType);
+
+        Label labelDispNormals = new Label("Display normals:"); // added
+        ComboBox<String> comboDispNormals = new ComboBox<>(); // added
+        comboDispNormals.getItems().addAll("True", "False"); // added
+        comboDispNormals.setValue(savedParams.isDisplayNormals() ? "True" : "False"); // added
+        VBox vboxNormals = new VBox();
+        vboxNormals.getChildren().addAll(labelDispNormals, comboDispNormals);
+        
+        HBox dropdownRow = new HBox(); // added
+        dropdownRow.getChildren().addAll(vboxButtonOpen,vboxSave,vboxProj, vboxDisp, vboxNormals); // added
+        
+        //Image
+        intBuffer = IntBuffer.allocate(WIN_WIDTH * WIN_HEIGHT);
+        pixelBuffer = new PixelBuffer<>(WIN_WIDTH, WIN_HEIGHT, intBuffer, PixelFormat.getIntArgbPreInstance());
+        bufferForWriting = new WritableImage(pixelBuffer);        
+//        bufferForWriting = new WritableImage(WIN_WIDTH, WIN_HEIGHT);
+        imageView = new ImageView(bufferForWriting); // Initially set buffer1
+//    	imageView = new ImageView(bufferForDisplay); // Initially set buffer1
+
+    	//labels 
+        labelInfo1 = new Label("starting...");
+        labelInfo2 = new Label("starting...");
+        
+        //combining button and bombobox row with image and lables
+        VBox vbox = new VBox();
+        vbox.getChildren().addAll(dropdownRow, imageView, labelInfo1, labelInfo2);
+
+        //creating scene setting the stage
+        Scene scene = new Scene(vbox);
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("My JavaFX App");
+        primaryStage.show();
+        scene.getRoot().requestFocus();
+
+        // Add event listeners
+        //////////////////////////////////////////////////////
+        scene.setOnKeyPressed(this::handleKeyPressed);
+        scene.setOnMousePressed(this::handleMousePress);
+        scene.setOnMouseDragged(this::handleMouseDragged);
+
+        // Event handlers for dropdowns
+        comboProjType.setOnAction(e -> { // added
+            savedParams.setProjectionType(comboProjType.getValue()); // Assuming setter exists in params // added
+        	model.setRenderingType(savedParams.getProjectionType(), savedParams.getDisplayType(), savedParams.isDisplayNormals());
+        }); // added
+
+        comboDispType.setOnAction(e -> { // added
+            savedParams.setDisplayType(comboDispType.getValue()); // Assuming setter exists in params // added
+        	model.setRenderingType(savedParams.getProjectionType(), savedParams.getDisplayType(), savedParams.isDisplayNormals());
+        }); // added
+
+        comboDispNormals.setOnAction(e -> { // added
+            savedParams.setDisplayNormals(Boolean.parseBoolean(comboDispNormals.getValue())); // Assuming setter exists in params // added
+        	model.setRenderingType(savedParams.getProjectionType(), savedParams.getDisplayType(), savedParams.isDisplayNormals());
+        }); // added
+
+        buttonOpen.setOnAction(event -> {
+            String filePath = Utilities.openFileChooser(primaryStage, "obj", Paths.get(savedParams.getModelFileName()).getParent().toString());
+        	if(filePath!=null) {
+        		model.load(filePath);
+        		savedParams.setModelFileName(filePath);
+        	}
+        });
+        buttonSave.setOnAction(event -> {
+        	String filePath = Utilities.saveFileChooser(primaryStage, "bmp", savedParams.getSaveImagePath());
+        	if(filePath!=null) {
+        		Utilities.saveImageAsBMP(bufferForWriting, filePath);
+//        		Utilities.saveImageAsBMP(bufferForDisplay, filePath);
+        		savedParams.setSaveImagePath(Paths.get(filePath).getParent().toString());
+        	}
+        });
+        
+        // Create and start the animation timer
+        AnimationTimer timer = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                updateImage();
+            }
+        };
+        timer.start();
+        
+        model.load(savedParams.getModelFileName());
+    }
+
+    TimeMeasurement tm = new TimeMeasurement(100, 10);
+
+    private void updateImage() {
+//        tm.start();
+        model.render(intBuffer,WIN_WIDTH,WIN_HEIGHT);
+
+        //to remove
+        drawCross(intBuffer);
+        //to remove
+//        tm.stop();
+//        System.out.println(tm.getLastMeasurement());
+
+        // Swap buffers after drawing is complete
+//        WritableImage temp = bufferForDisplay;
+//        bufferForDisplay = bufferForWriting;
+//        bufferForWriting = temp;
+
+        //updating display buffer
+//        imageView.setImage(bufferForWriting);
+//      imageView.setImage(bufferForDisplay);
+        
+    	pixelBuffer.updateBuffer(b -> null);
+    
+    	
+        Platform.runLater(() -> labelInfo1.setText(desciptionString1()));
+        Platform.runLater(() -> labelInfo2.setText(desciptionString2()));
+    }    
+    
+    //to remove
+    private void writingPixel(IntBuffer intBuffer, int x, int y, int r, int g, int b) {
+        int argb = (255 << 24) | (r << 16) | (g << 8) | b;
+        intBuffer.put(y * WIN_WIDTH + x, argb);
+    }
+
+    private void drawCross(IntBuffer intBuffer) {
+        int width = WIN_WIDTH;
+        int height = WIN_HEIGHT;
+
+        int crossR = 10;
+        int minCrossX = Math.max(0, crossX - crossR);
+        int maxCrossX = Math.min(crossX + crossR, width);
+        for (int i = minCrossX; i < maxCrossX; i++)
+            writingPixel(intBuffer, i, crossY, 255, 128, 128);
+        int minCrossY = Math.max(0, crossY - crossR);
+        int maxCrossY = Math.min(crossY + crossR, height);
+        for (int i = minCrossY; i < maxCrossY; i++)
+            writingPixel(intBuffer, crossX, i, 255, 128, 128);
+    }
+    //to remove
+
+    private void handleKeyPressed(KeyEvent event) {
+        KeyCode keyCode = event.getCode();
+        if (keyCode == KeyCode.UP) {
+            crossY -= 1;
+            modelTranslateVector[2] += 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.DOWN) {
+            crossY += 1;
+            modelTranslateVector[2] -= 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.LEFT) {
+            crossX -= 1;
+            modelTranslateVector[0] -= 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.RIGHT) {
+            crossX += 1;
+            modelTranslateVector[0] += 0.1;        
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.ADD) {
+            modelScale+=0.1;
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.SUBTRACT) {
+            modelScale-=0.1;
+        	model.setTransformation(modelScale, modelTranslateVector);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.D) {
+            lighting_Diffuse+=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.C) {
+            lighting_Diffuse-=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.S) {
+            lighting_Specular+=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.X) {
+            lighting_Specular-=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.A) {
+            lighting_Ambient+=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.Z) {
+            lighting_Ambient-=0.05;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.H) {
+            lighting_sHininess+=1;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        } else if (keyCode == KeyCode.N) {
+            lighting_sHininess-=1;
+        	model.setLightingParams(lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess, lightPosition);
+//          updateImage();
+            event.consume(); // Consume the event to prevent further propagation
+        }
+    }
+
+    private void handleMousePress(MouseEvent event) {
+        lastCursorX = event.getX();
+        lastCursorY = event.getY();
+    }
+
+    private void handleMouseDragged(MouseEvent event) {
+        double curCursorX = event.getX();
+        double curCursorY = event.getY();
+        double deltaX = curCursorX - lastCursorX; 
+        double deltaY = curCursorY - lastCursorY; 
+
+        final double CORSER_MOVEMENT_DIVISION_CONSTANT = 5;
+        cameraAngleHorizontal += deltaX/CORSER_MOVEMENT_DIVISION_CONSTANT;
+        cameraAngleVertical   += deltaY/CORSER_MOVEMENT_DIVISION_CONSTANT;
+        calcCameraPos();
+    	model.setCameraLocation(cameraPos, cameraLookAtCenter, cameraUp, horizontalFOV);
+        
+    	
+        //to remove
+        crossX += deltaX;
+        crossY += deltaY;
+        crossX = Math.max(0,Math.min(crossX, WIN_WIDTH-1));
+        crossY = Math.max(0,Math.min(crossY, WIN_HEIGHT-1));
+        lastCursorX = curCursorX; 
+        lastCursorY = curCursorY;
+        //to remove
+        
+        
+//      updateImage();
+    }
+
+	private void calcCameraPos() {
+		if (cameraAngleVertical > CAMERA_MAX_VERTICAL_ANGLE)
+			cameraAngleVertical = CAMERA_MAX_VERTICAL_ANGLE;
+		if (cameraAngleVertical < -CAMERA_MAX_VERTICAL_ANGLE)
+			cameraAngleVertical = -CAMERA_MAX_VERTICAL_ANGLE;
+
+		cameraAngleHorizontal = (cameraAngleHorizontal + 360) % 360;
+
+		cameraPos[0] = cameraRadius * Math.sin((double)(cameraAngleVertical + 90) * Math.PI / 180) * Math.cos((double)(cameraAngleHorizontal + 90) * Math.PI / 180);
+		cameraPos[2] = cameraRadius * Math.sin((double)(cameraAngleVertical + 90) * Math.PI / 180) * Math.sin((double)(cameraAngleHorizontal + 90) * Math.PI / 180);
+		cameraPos[1] = cameraRadius * Math.cos((double)(cameraAngleVertical + 90) * Math.PI / 180);
+	}
+
+	private String desciptionString1() {
+		return String.format(
+				"Scale:%.1f , Translate: (%.1f,%.1f,%.1f), Camera angles:(%.1f,%.1f) position:(%.1f,%.1f,%.1f) ",
+				modelScale, modelTranslateVector[0], modelTranslateVector[1], modelTranslateVector[2], cameraAngleHorizontal, cameraAngleVertical,
+				cameraPos[0], cameraPos[1], cameraPos[2]);
+	}
+
+	private String desciptionString2() {
+		return String.format("Lighting reflection - Diffuse:%1.2f, Specular:%1.2f, Ambient:%1.2f, sHininess:%1.2f",
+				lighting_Diffuse, lighting_Specular, lighting_Ambient, lighting_sHininess);
+	}
+
+	
+
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
+*/
+
+
+
+
+//When working with images and needing to update WritableImage frequently, you want to ensure that the operations are as efficient as possible. Here are a few approaches you can consider, including their pros and cons:
+//
+//1. Direct Pixel Manipulation on WritableImage
+//Directly manipulating the pixels on a WritableImage using PixelWriter is straightforward but can be slow for intensive operations because each write operation has some overhead.
+//
+//2. Manipulate a Buffered 2D Array
+//Using a 2D array to manipulate pixel data and then copying the array to WritableImage can be more efficient. This approach minimizes the number of individual write operations to the image.
+//
+//3. Use JavaFX Pixel Buffer
+//JavaFX provides a PixelBuffer class that can be used for more efficient pixel manipulation. It allows you to work directly with pixel data in a more performant way.
+//
+//Here's an example using a buffered 2D array approach:
+//
+//Summary
+//Direct Pixel Manipulation: Simple but can be slow due to the overhead of individual writes.
+//Buffered 2D Array: Better performance by minimizing write operations.
+//PixelBuffer: Provides the best performance for high-frequency updates by allowing direct access to pixel data.
+
+// working with PixelBeffer example
+//This approach can significantly speed up the pixel manipulation process.
+//Create a ByteBuffer: Hold the pixel data.
+//Create a PixelBuffer: Using the ByteBuffer.
+//Create a WritableImage: Using the PixelBuffer.
+//import javafx.application.Application;
+//import javafx.scene.Scene;
+//import javafx.scene.image.ImageView;
+//import javafx.scene.image.PixelFormat;
+//import javafx.scene.image.PixelWriter;
+//import javafx.scene.image.WritableImage;
+//import javafx.stage.Stage;
+//
+//import java.nio.ByteBuffer;
+//import java.nio.IntBuffer;
+//
+//public class PixelBufferApp extends Application {
+//
+//    @Override
+//    public void start(Stage primaryStage) {
+//        final int width = 800;
+//        final int height = 600;
+//
+//        // Create a buffer to hold the pixel data
+//        ByteBuffer buffer = ByteBuffer.allocate(width * height * 4); // 4 bytes per pixel (ARGB)
+//        IntBuffer intBuffer = buffer.asIntBuffer();
+//
+//        // Create a PixelBuffer using the buffer
+//        javafx.scene.image.PixelBuffer<ByteBuffer> pixelBuffer = new javafx.scene.image.PixelBuffer<>(
+//                width, height, buffer, PixelFormat.getIntArgbPreInstance()
+//        );
+//
+//        // Create a WritableImage using the PixelBuffer
+//        WritableImage writableImage = new WritableImage(pixelBuffer);
+//        ImageView imageView = new ImageView(writableImage);
+//
+//        // Example: Fill buffer with some pattern
+//        fillBufferWithPattern(intBuffer, width, height);
+//
+//        Scene scene = new Scene(imageView);
+//        primaryStage.setScene(scene);
+//        primaryStage.setTitle("PixelBuffer Example");
+//        primaryStage.show();
+//    }
+//
+//    private void fillBufferWithPattern(IntBuffer intBuffer, int width, int height) {
+//        for (int y = 0; y < height; y++) {
+//            for (int x = 0; x < width; x++) {
+//                int value = (x ^ y) & 0xFF; // Example pattern
+//                int argb = (255 << 24) | (value << 16) | (value << 8) | value;
+//                intBuffer.put(y * width + x, argb);
+//            }
+//        }
+//    }
+//
+//    public static void main(String[] args) {
+//        launch(args);
+//    }
+//}
+

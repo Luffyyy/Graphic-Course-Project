@@ -1,0 +1,27 @@
+1728484074650	Rename enum constant 'EX_8'
+1728484086839	Rename enum constant 'EX_7'
+1728484105916	Rename enum constant 'EX_6'
+1728484143876	Rename enum constant 'EX_5'
+1728550953874	Rename local variable 'RefractiveIndexAir'
+1728570948926	Rename local variable 'maxLength'
+1728579508256	Rename field 'comboAnimation'
+1728579626748	Rename local variable 'vboxAnimate'
+1728579772464	Rename method 'handleAnimationChange'
+1728581304843	Rename local variable 'labelAnimationon'
+1728582699856	Rename field 'labelInfo3'
+1728582714478	Rename field 'labelInfo4'
+1728582728142	Rename field 'labelInfo5'
+1728582740807	Rename field 'labelInfo3StringProperty'
+1728582752954	Rename field 'labelInfo4StringProperty'
+1728582763652	Rename field 'labelInfo5StringProperty'
+1728582851207	Rename method 'desciptionString3'
+1728582860294	Rename method 'desciptionString4'
+1728642607695	Delete element
+1728666913499	Delete element
+1728717235584	Delete element
+1728717532081	Rename type 'Sphere'
+1728717549610	Rename type 'Light'
+1728717565673	Rename type 'Material'
+1728718813961	Delete element
+1728720885096	Delete element
+1728721288099	Delete element

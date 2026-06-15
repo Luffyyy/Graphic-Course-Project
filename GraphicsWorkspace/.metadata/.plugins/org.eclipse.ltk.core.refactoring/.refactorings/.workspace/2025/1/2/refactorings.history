@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;OpenGL&apos; to &apos;OpenGL_fromBook&apos;" description="Rename resource &apos;OpenGL&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="/OpenGL" name="OpenGL_fromBook" stamp="1736064996512" updateReferences="true"/>
+</session>

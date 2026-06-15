@@ -1,0 +1,866 @@
+package your_code;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+import org.joml.Vector3f;
+
+import app_interface.FileParsingException;
+import app_interface.SphereTexture;
+import app_interface.Utilities;
+
+class Sphere {
+	Vector3f center;
+	float radius;
+	int materialIndex;
+
+	Sphere(Vector3f center, float radius, int materialIndex) {
+		this.center = center;
+		this.radius = radius;
+		this.materialIndex = materialIndex;
+	}
+
+	Sphere() {
+		this(new Vector3f(0.0f, 0.0f, 0.0f), 0.0f, 0);
+	}
+
+	@Override
+	public String toString() {
+		return String.format("Sphere: center_x: %s center_y: %s center_z: %s radius: %s materialIndex: %d", center.x,
+				center.y, center.z, radius, materialIndex);
+	}
+
+	// Constructor that takes a string from toString and reconstructs the object
+	Sphere(String toStringStr) throws FileParsingException {
+		try (Scanner scanner = new Scanner(toStringStr)) {
+			Utilities.parseTokenWithoutParameter(scanner, "Sphere");
+			center = new Vector3f(Utilities.parseTokenFloat(scanner, "center_x"),
+					Utilities.parseTokenFloat(scanner, "center_y"), Utilities.parseTokenFloat(scanner, "center_z"));
+			radius = Utilities.parseTokenFloat(scanner, "radius");
+			materialIndex = Utilities.parseTokenInt(scanner, "materialIndex");
+		} catch (FileParsingException e) {
+			throw new FileParsingException(e.getMessage());
+		}
+	}
+}
+
+
+class Light {
+	Vector3f location; // Light location
+	float intensity; // Light intensity
+	String comment; // Additional comment
+
+	public Light(Vector3f location, float intensity, String comment) {
+		this.location = location;
+		this.intensity = intensity;
+		this.comment = comment;
+	}
+
+	public Light() {
+		this(new Vector3f(0, 0, 0), 1.0f, "");
+	}
+
+	@Override
+	public String toString() {
+		return String.format("Light: location_x: %s location_y: %s location_z: %s intensity: %s comment: %s",
+				location.get(0), location.get(1), location.get(2), intensity, comment);
+	}
+
+	public Light(String toStringStr) throws FileParsingException {
+		try (Scanner scanner = new Scanner(toStringStr)) {
+			Utilities.parseTokenWithoutParameter(scanner, "Light");
+			location = new Vector3f(Utilities.parseTokenFloat(scanner, "location_x"),
+					Utilities.parseTokenFloat(scanner, "location_y"), Utilities.parseTokenFloat(scanner, "location_z"));
+			intensity = Utilities.parseTokenFloat(scanner, "intensity");
+			comment = Utilities.parseTokenRestOfString(scanner, "comment");
+		} catch (FileParsingException e) {
+			throw new FileParsingException(e.getMessage());
+		}
+	}
+}
+
+class Material {
+	//color component
+	float kColor; // Coefficient for overall color
+	Vector3f color; // RGB color values
+
+	//direct light component
+	float kDirect; // Coefficient for direct lighting
+	Vector3f ka; // Ambient reflection coefficients for red, green, and blue channels
+	Vector3f kd; // Diffuse reflection coefficients for red, green, and blue channels
+	Vector3f ks; // Specular reflection coefficients for red, green, and blue channels
+	float shininess; // Exponent that controls the scattering/radius of the specular highlight
+
+	//reflection component
+	float kReflection; // Coefficient for reflection
+
+	//refraction component
+	float kRefraction; // Coefficient for refraction
+	float refractiveIndex; // Refractive index
+
+	//texture component
+	float kTexture; // Coefficient for texture mapping
+	int textureIndex; // Index for the texture image of this sphere
+
+	String comment; // Additional comment or name of the material
+
+	public Material(
+			float kColor, Vector3f color, 
+			float kDirect, Vector3f ka, Vector3f kd, Vector3f ks, float shininess,
+			float kReflection, 
+			float kRefraction, float refractiveIndex, 
+			float kTexture, int textureIndex,
+			String comment) {
+		this.kColor = kColor;
+		this.color = color;
+		this.kDirect = kDirect;
+		this.ka = ka;
+		this.kd = kd;
+		this.ks = ks;
+		this.shininess = shininess;
+		this.kReflection = kReflection;
+		this.kRefraction = kRefraction;
+		this.refractiveIndex = refractiveIndex;
+		this.kTexture = kTexture;
+		this.textureIndex = textureIndex;
+		this.comment = comment;
+	}
+
+	public Material() {
+		this(
+				0.0f, new Vector3f(),  //float kColor, Vector3f color, 
+				0.0f, new Vector3f(), new Vector3f(), new Vector3f(), 1f, //float kDirect, Vector3f ka, Vector3f kd, Vector3f ks, float shininess,
+				0.0f, //float kReflection, 
+				0.0f, 1.0f, //float kRefraction, float refractiveIndex, 
+				0.0f, 0,   //float kTexture, int textureIndex,
+				"");        //String comment) {
+	}
+
+	@Override
+	public String toString() {
+		return String.format(
+				"Material: kColor: %s color_R: %s color_G: %s color_B: %s kDirect: %s ka_R: %s ka_G: %s ka_B: %s kd_R: %s kd_G: %s kd_B: %s ks_R: %s ks_G: %s ks_B: %s shininess: %s kReflection: %s kRefraction: %s refractiveIndex: %s kTexture: %s textureIndex: %d comment: %s",
+				kColor, color.get(0), color.get(1), color.get(2), kDirect, ka.get(0), ka.get(1), ka.get(2), kd.get(0),
+				kd.get(1), kd.get(2), ks.get(0), ks.get(1), ks.get(2), shininess, kReflection, kRefraction,
+				refractiveIndex, kTexture, textureIndex, comment);
+	}
+
+	public Material(String toStringStr) throws FileParsingException {
+		try (Scanner scanner = new Scanner(toStringStr)) {
+			Utilities.parseTokenWithoutParameter(scanner, "Material");
+			kColor = Utilities.parseTokenFloat(scanner, "kColor");
+			color = new Vector3f(Utilities.parseTokenFloat(scanner, "color_R"),
+					Utilities.parseTokenFloat(scanner, "color_G"), Utilities.parseTokenFloat(scanner, "color_B"));
+			kDirect = Utilities.parseTokenFloat(scanner, "kDirect");
+			ka = new Vector3f(Utilities.parseTokenFloat(scanner, "ka_R"), Utilities.parseTokenFloat(scanner, "ka_G"),
+					Utilities.parseTokenFloat(scanner, "ka_B"));
+			kd = new Vector3f(Utilities.parseTokenFloat(scanner, "kd_R"), Utilities.parseTokenFloat(scanner, "kd_G"),
+					Utilities.parseTokenFloat(scanner, "kd_B"));
+			ks = new Vector3f(Utilities.parseTokenFloat(scanner, "ks_R"), Utilities.parseTokenFloat(scanner, "ks_G"),
+					Utilities.parseTokenFloat(scanner, "ks_B"));
+			shininess = Utilities.parseTokenFloat(scanner, "shininess");
+			kReflection = Utilities.parseTokenFloat(scanner, "kReflection");
+			kRefraction = Utilities.parseTokenFloat(scanner, "kRefraction");
+			refractiveIndex = Utilities.parseTokenFloat(scanner, "refractiveIndex");
+			kTexture = Utilities.parseTokenFloat(scanner, "kTexture");
+			textureIndex = Utilities.parseTokenInt(scanner, "textureIndex");
+			comment = Utilities.parseTokenRestOfString(scanner, "comment");
+		} catch (FileParsingException e) {
+			throw new FileParsingException(e.getMessage());
+		}
+	}
+}
+
+public class Model {
+	List<Sphere> spheres = new ArrayList<>(); // List of spheres
+	float fovXdegree; // Field of view
+	List<Light> lights = new ArrayList<>(); // List of lights
+	List<Material> materials = new ArrayList<>(); // List of materials
+	String skyBoxImageFileName; // Sky box image filename
+	List<String> sphereTextureFileNames = new ArrayList<>(); // List of sphere texture filenames
+	String comment; // Additional comment
+	
+	List<SphereTexture> skyBoxImageSphereTextures = new ArrayList<>();// List of sphere texture objects
+
+	public Model() {
+		this.fovXdegree = 0; // Initialize with default values
+		this.skyBoxImageFileName = "";
+		this.comment = "";
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("comment: " + comment + "\n");
+		sb.append("\n");
+		sb.append("fovXdegree: " + fovXdegree + "\n");
+		sb.append("skyBoxImageFileName: " + skyBoxImageFileName + "\n");
+		sb.append("\n");
+		for (Light light : lights) {
+			sb.append(light + "\n");
+		}
+		sb.append("\n");
+		for (String sphereTextureFileName : sphereTextureFileNames) {
+			sb.append("sphereTextureFileName: " + sphereTextureFileName + "\n");
+		}
+		sb.append("\n");
+		for (Material material : materials) {
+			sb.append(material + "\n");
+		}
+		sb.append("\n");
+		for (Sphere sphere : spheres) {
+			sb.append(sphere + "\n");
+		}
+		return sb.toString();
+	}
+
+	public Model(String toStringStr, boolean stam) throws FileParsingException, IOException {
+		try (Scanner allStringScanner = new Scanner(toStringStr)) {
+			String line;
+			while (allStringScanner.hasNextLine()) {
+				line = allStringScanner.nextLine();
+				if (line.isEmpty()) {
+					continue;
+				}
+				try (Scanner lineScanner = new Scanner(line)) { // Try-with-resources for lineScanner
+					String lineType = line.substring(0, line.indexOf(':'));
+					switch (lineType) {
+					case "comment":
+						comment = Utilities.parseTokenRestOfString(lineScanner, "comment");
+						break;
+					case "fovXdegree":
+						fovXdegree = Utilities.parseTokenFloat(lineScanner, "fovXdegree");
+						break;
+					case "skyBoxImageFileName":
+						skyBoxImageFileName = Utilities.parseTokenString(lineScanner, "skyBoxImageFileName");
+						break;
+					case "Light":
+						Light light = new Light(line);
+						lights.add(light);
+						break;
+					case "sphereTextureFileName":
+						String sphereTextureFileName = Utilities.parseTokenString(lineScanner, "sphereTextureFileName");
+						sphereTextureFileNames.add(sphereTextureFileName);
+						break;
+					case "Material":
+						Material material = new Material(line);
+						materials.add(material);
+						break;
+					case "Sphere":
+						Sphere sphere = new Sphere(line);
+						spheres.add(sphere);
+						break;
+					default:
+						throw new RuntimeException("At Model constructor from toStringStr, line type \"" + lineType
+								+ "\" not legal. Failed to parse model file. line: \"" + line + "\" failed.");
+					}
+				}
+			}
+		} catch (FileParsingException e) {
+			throw new FileParsingException(e.getMessage());
+		}
+		
+		for(String sphereTextureFileName: sphereTextureFileNames) {
+			skyBoxImageSphereTextures.add(new SphereTexture(sphereTextureFileName)); 
+		}
+	}
+
+	public Model(String modelFilename) throws IOException, FileParsingException {
+		this(Files.readString(Paths.get(modelFilename)), false);
+	}
+
+
+	
+	static void writeModelToFile(String fileName, Model modelToWrite) {
+		try (Writer writer = new FileWriter(fileName)) {
+			writer.write(modelToWrite.toString());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println("File \"" + fileName + "\" was created with the following text ");
+		System.out.println(
+				"-------------------------------------------------------------------------------------------------------");
+		System.out.println(modelToWrite);
+	}
+
+	static void writeModelToFileIfChanged(String fileName, Model modelToWrite) {
+		boolean modelAreEquals = false;
+		try {
+			Model modelInFile = new Model(fileName);
+			modelAreEquals = modelToWrite.toString().equals(modelInFile.toString());
+		} catch (Exception e) {
+			modelAreEquals = false;
+		}
+
+		if (!modelAreEquals) {
+			writeModelToFile(fileName, modelToWrite);
+		}
+	}
+
+	
+	public static void main(String[] args) throws Exception {
+		System.out.println("Testing toString and parsing toString back to the object");
+		System.out.println("===========================================================");
+		Sphere s1 = new Sphere(new Vector3f(1, 2, 3), 4.1f, 5);
+		System.out.println(s1);
+		Sphere s2 = new Sphere(s1.toString());
+		System.out.println(s2);
+		if (!s1.toString().equals(s2.toString())) {
+			System.err.println(
+					"toString of an object and the toString of the constucted object from its toString are not equal");
+			throw new Exception();
+		} else
+			System.out.println("success - strings are equals.");
+
+		Material mirror1 = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.3f, new Vector3f(0.25f, 0.20725f, 0.20725f), new Vector3f(1.0f, 0.829f, 0.829f),
+				new Vector3f(0.296648f, 0.296648f, 0.296648f), 1000.0f, // Direct light
+				0.7f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Mirror" // Comment
+		);
+		System.out.println(mirror1);
+		Material mirror2 = new Material(mirror1.toString());
+		System.out.println(mirror2);
+		if (!mirror1.toString().equals(mirror2.toString())) {
+			System.err.println(
+					"toString of an object and the toString of the constucted object from its toString are not equal");
+			throw new Exception();
+		} else
+			System.out.println("success - strings are equals.");
+
+		Light light1 = new Light(new Vector3f(1, 2, 3), 4.0f, "ccccccc");
+		System.out.println(light1);
+		Light light2 = new Light(light1.toString());
+		System.out.println(light2);
+		if (!light1.toString().equals(light2.toString())) {
+			System.err.println(
+					"toString of an object and the toString of the constucted object from its toString are not equal");
+			throw new Exception();
+		} else
+			System.out.println("success - strings are equals.");
+
+		Material gold1 = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.9f, new Vector3f(0.24725f, 0.1995f, 0.0745f), new Vector3f(0.75164f, 0.60648f, 0.22648f),
+				new Vector3f(0.628281f, 0.555802f, 0.366065f), 100.0f, // Direct light
+				0.0f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.1f, -1, // Texture
+				"gold" // Comment
+		);
+		Material glass1 = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), 0.1f, new Vector3f(1.0f),
+				new Vector3f(1.0f), new Vector3f(1.0f), 1000.0f, 0.1f, 0.8f, 1.52f, 0.0f, -1, "glass");
+		Model model1 = new Model();
+		model1.comment = "Spheres_from_few_materials";
+		model1.fovXdegree = 20;
+		model1.skyBoxImageFileName = "./Models/sky.jpg";
+		model1.lights.add(new Light(new Vector3f(6, 10, 0), 1.0f, "1"));
+		model1.lights.add(new Light(new Vector3f(-6, -10, 0), 2.0f, "2"));
+		model1.materials.add(mirror1);
+		model1.materials.add(gold1);
+		model1.materials.add(glass1);
+		model1.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+		model1.sphereTextureFileNames.add("./Models/mars.jpg");
+
+		model1.spheres.add(new Sphere(new Vector3f(0, 0, -10), 0.2f, 0));
+		model1.spheres.add(new Sphere(new Vector3f(0, 0, -20), 1f, 1));
+		model1.spheres.add(new Sphere(new Vector3f(0, 0, -30), 2.5f, 2));
+
+		System.out.println(model1);
+		System.out.println();
+
+		Model model2 = new Model(model1.toString(),false);
+		System.out.println(model2);
+		if (!model1.toString().equals(model2.toString())) {
+			System.err.println(
+					"toString of an object and the toString of the constucted object from its toString are not equal");
+			throw new Exception();
+		} else
+			System.out.println("success - strings are equals.");
+
+		System.out.println();
+		System.out.println("Success in testing toString and parsing toString back to the object");
+		System.out.println("===========================================================");
+		System.out.println();
+
+		System.out.println();
+		System.out.println("Writing file models if changed");
+		System.out.println("===========================================================");
+	
+
+		// materials
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		Material simplePastelBlue = new Material();
+		simplePastelBlue.kColor = 1f;
+		simplePastelBlue.color = new Vector3f(0.10588235294117647f, 0.5215686274509804f, 0.7215686274509804f);
+		simplePastelBlue.comment = "simplePastelBlue";
+
+		Material simplePastelBlack = new Material();
+		simplePastelBlack.kColor = 1f;
+		simplePastelBlack.color = new Vector3f(0.35294117647058826f, 0.3215686274509804f, 0.3333333333333333f);
+		simplePastelBlack.comment = "simplePastelBlack";
+		
+		Material simplePastelGreen = new Material();
+		simplePastelGreen.kColor = 1f;
+		simplePastelGreen.color = new Vector3f(0.3333333333333333f, 0.6196078431372549f, 0.5137254901960784f);
+		simplePastelGreen.comment = "simplePastelGreen";
+
+		Material simplePastelBrown = new Material();
+		simplePastelBrown.kColor = 1f;
+		simplePastelBrown.color = new Vector3f(0.6823529411764706f, 0.35294117647058826f, 0.2549019607843137f);
+		simplePastelBrown.comment = "simplePastelBrown";
+
+		Material simplePastelLightGreen = new Material();
+		simplePastelLightGreen.kColor = 1f;
+		simplePastelLightGreen.color = new Vector3f(0.7647058823529411f, 0.796078431372549f, 0.44313725490196076f);
+		simplePastelLightGreen.comment = "simplePastelLightGreen";
+
+		Material simplePastelPink = new Material();
+		simplePastelPink.kColor = 1f;
+		simplePastelPink.color = new Vector3f(0.9450980392156862f, 0.796078431372549f, 1f);
+		simplePastelPink.comment = "simplePastelPink";
+
+		Material mirror = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.3f, new Vector3f(0.25f, 0.20725f, 0.20725f), new Vector3f(1.0f, 0.829f, 0.829f),
+				new Vector3f(0.296648f, 0.296648f, 0.296648f), 1000.0f, // Direct light
+				0.7f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Mirror" // Comment
+		);
+
+		Material gold = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.9f, new Vector3f(0.24725f, 0.1995f, 0.0745f), new Vector3f(0.75164f, 0.60648f, 0.22648f),
+				new Vector3f(0.628281f, 0.555802f, 0.366065f), 100.0f, // Direct light
+				0.0f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.1f, -1, // Texture
+				"gold" // Comment
+		);
+
+		Material direct = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), 1.0f, new Vector3f(0.2f),
+				new Vector3f(0.75f), new Vector3f(0.25f), 40.0f, 0.0f, 0.0f, 1.52f, 0.0f, -1, "direct");
+
+		Material texture = new Material(
+				0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.0f, new Vector3f(0.2f), new Vector3f(0.75f), new Vector3f(0.25f), 40.0f, // Direct light 
+				0.0f, // Reflection
+				0.0f, 1.52f, // Refraction
+				1.0f, 0, // Texture
+				"texture");
+
+		Material glass = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), 0.1f, new Vector3f(1.0f),
+				new Vector3f(1.0f), new Vector3f(1.0f), 1000.0f, 0.1f, 0.8f, 1.52f, 0.0f, -1, "Glass");
+
+		Vector3f plasticColorR = new Vector3f(1.0f, 0.0f, 0.0f);
+		Material plasticR = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.95f, new Vector3f(0.0f), plasticColorR, plasticColorR, 100.0f, // Direct light
+				0.05f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Plastic with color" // Comment
+		);
+
+		Vector3f plasticColorG = new Vector3f(0.0f, 1.0f, 0.0f);
+		Material plasticG = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.95f, new Vector3f(0.0f), plasticColorG, plasticColorG, 100.0f, // Direct light
+				0.05f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Plastic with color" // Comment
+		);
+
+		Vector3f plasticColorB = new Vector3f(0.0f, 0.0f, 1.0f);
+		Material plasticB = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.95f, new Vector3f(0.0f), plasticColorB, plasticColorB, 100.0f, // Direct light
+				0.05f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Plastic with color" // Comment
+		);
+
+		Vector3f plasticColor1 = new Vector3f(0.4f, 0.4f, 0.6f);
+		Material plastic1 = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.95f, new Vector3f(0.0f), plasticColor1, plasticColor1, 100.0f, // Direct light
+				0.05f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Plastic with color" // Comment
+		);
+
+		Vector3f plasticColor2 = new Vector3f(0.4f, 0.5f, 0.4f);
+		Material plastic2 = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.95f, new Vector3f(0.0f), plasticColor2, plasticColor2, 100.0f, // Direct light
+				0.05f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Plastic with color" // Comment
+		);
+
+		Vector3f plasticColor3 = new Vector3f(0.4f, 0.6f, 0.5f);
+		Material plastic3 = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.95f, new Vector3f(0.0f), plasticColor3, plasticColor3, 100.0f, // Direct light
+				0.05f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Plastic with color" // Comment
+		);
+
+		Vector3f plasticColor4 = new Vector3f(0.5f, 0.4f, 0.2f);
+		Material plastic4 = new Material(0.0f, new Vector3f(1.0f, 1.0f, 1.0f), // Color
+				0.95f, new Vector3f(0.0f), plasticColor4, plasticColor4, 100.0f, // Direct light
+				0.05f, // Reflection
+				0.0f, 1.52f, // Refraction
+				0.0f, -1, // Texture
+				"Plastic with color" // Comment
+		);
+
+		Model model;
+		String fileName;
+		
+		
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/010_skybox_with_direction_labels.model";
+		model = new Model();
+		model.comment = "panorama_image_with_direction_labels.jpg";
+		model.fovXdegree = 80;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+
+		writeModelToFileIfChanged(fileName, model);
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/020_skybox_1.model";
+		model = new Model();
+		model.comment = "skybox_1.model - Model with aerial-drone-panorama-view skybox";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/aerial-drone-panorama-view-chisinau-multiple-buildings-roads-snow-bare-trees.jpg";
+
+		writeModelToFileIfChanged(fileName, model);
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/030_skybox_2.model";
+		model = new Model();
+		model.comment = "Outer_space_skybox.model - Model with aerial city skybox";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+
+		writeModelToFileIfChanged(fileName, model);
+		
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/040_OneSphere_simpleColor.model";
+		model = new Model();
+		model.comment = "OneSphere_simpleBlue.model - Model of one sphere with simple blue color (no diifuse, specular, ambinet cooficents).";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+
+		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+		model.materials.add(simplePastelBlue);
+		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 5f, 0));
+
+		writeModelToFileIfChanged(fileName, model);
+		
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/050_FewSpheres_simpleColors.model";
+		model = new Model();
+		model.comment = "FewSpheres_simpleColors.model - Model of few spheres with simple colors (no diifuse, specular, ambinet cooficents).";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+		model.materials.add(simplePastelBlue);
+		model.materials.add(simplePastelBlack);
+		model.materials.add(simplePastelGreen);
+		model.materials.add(simplePastelBrown);
+		model.materials.add(simplePastelLightGreen);
+		model.materials.add(simplePastelPink);
+		model.sphereTextureFileNames.add("./Models/8k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(5, 0, -5f), 1f, 5));
+		model.spheres.add(new Sphere(new Vector3f(4, 0, -6.5f), 1f, 4));
+		model.spheres.add(new Sphere(new Vector3f(3, 0, -8f), 1f, 3));
+		model.spheres.add(new Sphere(new Vector3f(2, 0, -9.5f), 1f, 2));
+		model.spheres.add(new Sphere(new Vector3f(1, 0, -11f), 1f, 1));
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -12.5f), 1f, 0));
+		model.spheres.add(new Sphere(new Vector3f(-1, 0, -11f), 1f, 1));
+		model.spheres.add(new Sphere(new Vector3f(-2, 0, -9.5f), 1f, 2));
+		model.spheres.add(new Sphere(new Vector3f(-3, 0, -8f), 1f, 3));
+		model.spheres.add(new Sphere(new Vector3f(-4, 0, -6.5f), 1f, 4));
+		model.spheres.add(new Sphere(new Vector3f(-5, 0, -5f), 1f, 5));
+
+		writeModelToFileIfChanged(fileName, model);
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/060_OneSphere_direct.model";
+		model = new Model();
+		model.comment = "OneSphere_direct.model - Model of one sphere with direct light.";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+
+		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+		model.materials.add(direct);
+		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 5f, 0));
+
+		writeModelToFileIfChanged(fileName, model);
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/070_OneSphere_mirror.model";
+		model = new Model();
+		model.comment = "OneSphere_mirror.model - Model of one sphere with mirror reflection.";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/DefaultSkyBoxImage.jpg";
+
+		model.lights.add(new Light(new Vector3f(3, 10, 0), 1.0f, ""));
+		model.materials.add(mirror);
+		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 5f, 0));
+
+		writeModelToFileIfChanged(fileName, model);
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/080_OneSphere_glass.model";
+		model = new Model();
+		model.comment = "OneSphere_glass.model - Model of one sphere made of transparent glass.";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/DefaultSkyBoxImage.jpg";
+
+		model.lights.add(new Light(new Vector3f(3, 10, 0), 1.0f, ""));
+		model.materials.add(glass);
+		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 5f, 0));
+
+		writeModelToFileIfChanged(fileName, model);
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/090_OneSphere_texture.model";
+		model = new Model();
+		model.comment = "OneSphere_texture.model - Model of one sphere with texture.";
+		model.fovXdegree = 90;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+		
+		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+		model.materials.add(texture);
+		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 5f, 0));
+
+		writeModelToFileIfChanged(fileName, model);
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/100_OneSphereWithGround.model";
+		model = new Model();
+		model.comment = "OneSphereWithGround.model - Model of one sphere with a ground below the sphere.";
+		model.fovXdegree = 40;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+		
+		model.lights.add(new Light(new Vector3f(0, 17, -20), 1.0f, ""));
+		model.materials.add(texture);
+		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, -1f, -20f), 2f, 0));
+		model.spheres.add(new Sphere(new Vector3f(0, -100003f, -20f), 100000f, 0));
+
+		writeModelToFileIfChanged(fileName, model);
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/110_OneSphereWithGround_new.model";
+		model = new Model();
+		model.comment = "OneSphereWithGround_new.model - Model of one sphere with a ground below the sphere.";
+		model.fovXdegree = 40;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+		
+		model.lights.add(new Light(new Vector3f(5, 17, 0), 1.0f, ""));
+		model.materials.add(mirror);
+		model.materials.add(gold);
+		model.materials.add(plastic1);
+		model.materials.add(glass);
+		model.materials.add(gold);
+		model.materials.add(plastic2);
+		model.sphereTextureFileNames.add("./Models/yellow-wall-texture-with-scratches.jpg");
+		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, -1f, -20f), 2f, 2));
+		model.spheres.add(new Sphere(new Vector3f(0, -100003f, -20f), 100000f, 0));
+
+		writeModelToFileIfChanged(fileName, model);
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		fileName = "./Models/120_threeOneAfterTheOther.model";
+		model = new Model();
+		model.comment = "threeOneAfterTheOther.model - Model of three spheres one after the other.";
+		model.fovXdegree = 20;
+		model.skyBoxImageFileName = "./Models/panorama_image_with_direction_labels.jpg";
+		
+		model.lights.add(new Light(new Vector3f(6, 10, 0), 1.0f, ""));
+		model.materials.add(plasticR);
+		model.materials.add(plasticG);
+		model.materials.add(plasticB);
+		model.sphereTextureFileNames.add("./Models/sky.jpg");
+
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -10f), 0.2f, 0));
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -20f), 1f, 1));
+		model.spheres.add(new Sphere(new Vector3f(0, 0, -30f), 2.5f, 2));
+
+		writeModelToFileIfChanged(fileName, model);
+		
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/empty.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 80;
+//		model.skyBoxImageFileName = "./Models/lok-yiu-cheung-o6k0ZH1eOwg-unsplash.jpg";
+//		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+//		model.materials.add(direct);
+//		model.sphereTextureFileNames.add("./Models/lok-yiu-cheung-o6k0ZH1eOwg-unsplash.jpg");
+//
+//		Sphere sphere = new Sphere(new Vector3f(0.0f, 0.0f, 10.0f), 1f, 0);
+//		model.spheres.add(sphere);
+//
+//		writeModelToFileIfChanged(fileName, model);
+//
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/SpheresAtCorners.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 90;
+//		model.skyBoxImageFileName = "./Models/lok-yiu-cheung-o6k0ZH1eOwg-unsplash.jpg";
+//		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+//		model.materials.add(plastic1);
+//		model.materials.add(plastic2);
+//		model.materials.add(plastic3);
+//		model.materials.add(plastic4);
+//		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+//
+//		model.spheres.add(new Sphere(new Vector3f(-10, -10, -10), 0.2f, 0));
+//		model.spheres.add(new Sphere(new Vector3f(-10, 10, -10), 0.2f, 1));
+//		model.spheres.add(new Sphere(new Vector3f(10, 10, -10), 0.2f, 2));
+//		model.spheres.add(new Sphere(new Vector3f(10, -10, -10), 0.2f, 3));
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 0.2f, 0));
+//
+//		writeModelToFileIfChanged(fileName, model);
+//
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/threeOneAfterTheOther.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 20;
+//		model.skyBoxImageFileName = "./Models/sky.jpg";
+//		model.lights.add(new Light(new Vector3f(6, 10, 0), 1.0f, ""));
+//		model.materials.add(plasticR);
+//		model.materials.add(plasticG);
+//		model.materials.add(plasticB);
+//		model.sphereTextureFileNames.add("./Models/sky.jpg");
+//
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 0.2f, 0));
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -20), 1f, 1));
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -30), 2.5f, 2));
+//
+//		writeModelToFileIfChanged(fileName, model);
+//
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/line.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 45;
+//		model.skyBoxImageFileName = "./Models/lokpanorama_image_with_direction_labelsg";
+//		model.lights.add(new Light(new Vector3f(1, 10, 10), 1.0f, ""));
+//		model.materials.add(glass);
+//		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+//
+//		for (int j = 0; j < 30; j++) {
+//			float r = j * 25 / 255f;
+//			model.spheres.add(new Sphere(new Vector3f(0, -1, -1 - 3 * j), 0.2f, 0));
+//		}
+//
+//		writeModelToFileIfChanged(fileName, model);
+//
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/SpheresAtCorners_2.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 90;
+//		model.skyBoxImageFileName = "./Models/lok-yiu-cheung-o6k0ZH1eOwg-unsplash.jpg";
+//		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+//		model.materials.add(plastic1);
+//		model.materials.add(plastic2);
+//		model.materials.add(plastic3);
+//		model.materials.add(plastic4);
+//		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+//
+//		model.spheres.add(new Sphere(new Vector3f(-10, -10, -10), 0.2f, 0));
+//		model.spheres.add(new Sphere(new Vector3f(-10, 10, -10), 0.2f, 1));
+//		model.spheres.add(new Sphere(new Vector3f(10, 10, -10), 0.2f, 2));
+//		model.spheres.add(new Sphere(new Vector3f(10, -10, -10), 0.2f, 3));
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 0.2f, 0));
+//
+//		writeModelToFileIfChanged(fileName, model);
+//
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/OneSphere_texture_2.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 90;
+//		model.skyBoxImageFileName = "./Models/outer-space-background.jpg";
+//		model.lights.add(new Light(new Vector3f(10, 3, 0), 1.0f, ""));
+//		model.materials.add(texture);
+//		model.sphereTextureFileNames.add("./Models/8k_moon.jpg");
+//
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 5.0f, 0));
+//
+//		writeModelToFileIfChanged(fileName, model);
+//
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/threeOneAfterTheOther_2.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 20;
+//		model.skyBoxImageFileName = "./Models/sky.jpg";
+//		model.lights.add(new Light(new Vector3f(6, 10, 0), 1.0f, ""));
+//		model.materials.add(plasticR);
+//		model.materials.add(plasticG);
+//		model.materials.add(plasticB);
+//		model.sphereTextureFileNames.add("./Models/sky.jpg");
+//
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -10), 0.2f, 0));
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -20), 1f, 1));
+//		model.spheres.add(new Sphere(new Vector3f(0, 0, -30), 2.5f, 2));
+//
+//		writeModelToFileIfChanged(fileName, model);
+//
+//		/////////////////////////////////////////////////////////////////////////////////////////////////
+//		fileName = "./Models/line_2.model";
+//		model = new Model();
+//		model.comment = "Spheres_from_few_materials";
+//		model.fovXdegree = 45;
+//		model.skyBoxImageFileName = "./Models/lok-yiu-cheung-o6k0ZH1eOwg-unsplash.jpg";
+//		model.lights.add(new Light(new Vector3f(1, 10, 10), 1.0f, ""));
+//		model.materials.add(glass);
+//		model.sphereTextureFileNames.add("./Models/2k_moon.jpg");
+//
+//		for (int j = 0; j < 30; j++) {
+//			float r = (float) (j * 25) / 255;
+//			model.spheres.add(new Sphere(new Vector3f(0, -1, -1 - 3 * j), 0.2f, 0));
+//		}
+//
+//		writeModelToFileIfChanged(fileName, model);
+	}
+
+
+}

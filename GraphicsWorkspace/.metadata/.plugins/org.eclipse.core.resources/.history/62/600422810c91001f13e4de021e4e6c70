@@ -1,0 +1,717 @@
+package your_code;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.joml.Matrix3f;
+import org.joml.Vector3f;
+
+import app_interface.ExerciseEnum;
+import app_interface.Model;
+import app_interface.ModelLight;
+import app_interface.ModelMaterial;
+import app_interface.ModelSphere;
+import app_interface.SphereTexture;
+
+class IntersectionResults {
+	boolean intersected;
+	Vector3f intersectionPoint; 
+	Vector3f normal; 
+	boolean linePointOutside;
+	ModelSphere intersectedSphere;
+
+	IntersectionResults(boolean intersected) {
+		this.intersected = intersected;
+	}	
+	IntersectionResults(boolean intersected, Vector3f intersectionPoint, Vector3f normal,
+			boolean linePointOutside, ModelSphere intersectedSphere) {
+		this.intersected = intersected;
+		this.intersectionPoint = intersectionPoint;
+		this.normal = normal;
+		this.linePointOutside = linePointOutside;
+		this.intersectedSphere = intersectedSphere;
+	}
+}
+
+
+public class WorldModel {
+
+	Model model;
+
+	private YourSelectionEnum yourSelection;
+
+	private static ExerciseEnum exercise;
+
+	private int imageWidth;
+	private int imageHeight;
+
+	SphereTexture skyBoxImageSphereTexture;
+
+	private static int depthOfRayTracing;
+	
+	public WorldModel(int imageWidth, int imageHeight) {
+		this.imageWidth = imageWidth;
+		this.imageHeight = imageHeight;
+	}
+
+	public void setRenderingParams(int depthOfRayTracing) {
+		WorldModel.depthOfRayTracing = depthOfRayTracing;
+	}
+	
+	public void setExercise(ExerciseEnum exercise) {
+		WorldModel.exercise = exercise;
+	}
+
+	public void setYourSelection(YourSelectionEnum sel) {
+		this.yourSelection = sel;
+	}	
+	
+	public boolean load(String fileName) {
+		try {
+			model = new Model(fileName);
+			skyBoxImageSphereTexture = new SphereTexture(model.skyBoxImageFileName);
+			return true;
+		} catch (Exception e) {
+			System.err.println("Failed to load the model file: " + fileName + ".\nDescription: " + e.getMessage());
+			return false;
+		}
+	}
+
+	public Vector3f renderPixel(int x, int y) {
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+/////////////// solution ///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+		Vector3f color = new Vector3f();
+		if (exercise == ExerciseEnum.EX_0___Starting_point) {
+		}
+		else if(exercise == ExerciseEnum.EX_1_1_Colors_Random_color) {
+			color.x = (float)Math.random();
+			color.y = (float)Math.random();
+			color.z = (float)Math.random();
+		} 
+		else if(exercise == ExerciseEnum.EX_1_2_Colors_Color_space) {
+			Matrix3f mat = new Matrix3f().set(
+				   -1.0f/(imageWidth-1), -1.0f/(imageHeight-1),  1.0f,   // First row
+					1.0f/(imageWidth-1),  0.0f,                  0.0f,   // Second row
+					0.0f,                 1.0f/(imageHeight-1),  0.0f    // Third row
+	        ).transpose();       
+			mat.transform(new Vector3f(x,y,1), color);
+		}
+//		else if(exercise.ordinal() >= ExerciseEnum.EX_2.ordinal() && exercise.ordinal() <= ExerciseEnum.EX_3_4.ordinal()) { 
+//
+//			//calculate pixel direction
+//			Vector3f pixelRayDirection = calcPixelDirection(x, y, imageWidth, imageHeight, model.fovXdegree);
+//			
+//			// Set up the camera position (at origin)
+//			Vector3f cameraPosition = new Vector3f(0.0f, 0.0f, 0.0f);
+//
+//			Vector3f sphereTexture = skyBoxImageSphereTexture.sampleDirectionFromMiddle(pixelRayDirection);
+//			color.set(sphereTexture);
+//			
+//			if(exercise == ExerciseEnum.EX_3_1) { 
+//				if(model.spheres.size()>0) {
+//					IntersectionResults intersectionResults = rayIntersection(cameraPosition, pixelRayDirection, model.spheres.get(0)); 
+//					if(intersectionResults.intersected) 
+//						color.set(0);
+//				}
+//			} else if(exercise == ExerciseEnum.EX_3_2) {
+//				if(model.spheres.size()>0) {
+//					ModelMaterial shpereMaterial = model.materials.get(model.spheres.get(0).materialIndex);
+//					IntersectionResults intersectionResults = rayIntersection(cameraPosition, pixelRayDirection, model.spheres.get(0)); 
+//					if(intersectionResults.intersected) {
+//						color.set(shpereMaterial.color);
+//					} 
+//				}
+//			} else if(exercise == ExerciseEnum.EX_3_3 || exercise == ExerciseEnum.EX_3_4) {
+//				if(model.spheres.size()>0) {
+//					IntersectionResults intersectionResults = rayIntersection(cameraPosition, pixelRayDirection, model.spheres); 
+//					if(intersectionResults.intersected) {
+//						ModelMaterial shpereMaterial = model.materials.get(intersectionResults.intersectedSphere.materialIndex);
+//						color.set(shpereMaterial.color);
+//					} 
+//				}
+//			}
+//		}
+		else {
+			//calculate pixel direction
+			Vector3f pixelRayDirection = calcPixelDirection(x, y, imageWidth, imageHeight, model.fovXdegree);
+			
+			// Set up the camera position (at origin)
+			Vector3f cameraPosition = new Vector3f(0.0f, 0.0f, 0.0f);
+
+	        Vector3f pixelColor = rayTracing(cameraPosition, pixelRayDirection, 0, model, skyBoxImageSphereTexture);
+
+	        color.set(pixelColor);
+		}
+
+		return color;
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+/////////////// solution ///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+	}
+
+	
+	
+    private static Vector3f rayTracing(Vector3f incidentRayOrigin, Vector3f incidentRayDirection, int depthLevel, Model model, SphereTexture skyBoxImageSphereTexture) {
+        if (depthLevel == depthOfRayTracing) return new Vector3f(0);
+
+//		if(exercise == ExerciseEnum.EX_3_1) { 
+//		if(model.spheres.size()>0) {
+//			IntersectionResults intersectionResults = rayIntersection(cameraPosition, pixelRayDirection, model.spheres.get(0)); 
+//			if(intersectionResults.intersected) 
+//				color.set(0);
+//		}
+//	} else if(exercise == ExerciseEnum.EX_3_2) {
+//		if(model.spheres.size()>0) {
+//			ModelMaterial shpereMaterial = model.materials.get(model.spheres.get(0).materialIndex);
+//			IntersectionResults intersectionResults = rayIntersection(cameraPosition, pixelRayDirection, model.spheres.get(0)); 
+//			if(intersectionResults.intersected) {
+//				color.set(shpereMaterial.color);
+//			} 
+//		}
+//	} else if(exercise == ExerciseEnum.EX_3_3 || exercise == ExerciseEnum.EX_3_4) {
+//		if(model.spheres.size()>0) {
+//			IntersectionResults intersectionResults = rayIntersection(cameraPosition, pixelRayDirection, model.spheres); 
+//			if(intersectionResults.intersected) {
+//				ModelMaterial shpereMaterial = model.materials.get(intersectionResults.intersectedSphere.materialIndex);
+//				color.set(shpereMaterial.color);
+//			} 
+//		}
+//	}
+//}
+
+//      IntersectionResults intersectionResults = rayIntersection(incidentRayOrigin, incidentRayDirection, model.spheres);
+      IntersectionResults intersectionResults;
+   	  if(exercise.ordinal() < ExerciseEnum.EX_3_3_Intersection_List_of_spheres.ordinal()) 
+   		  intersectionResults = rayIntersection(incidentRayOrigin, incidentRayDirection, model.spheres.get(0)); 
+   	  else
+   		  intersectionResults = rayIntersection(incidentRayOrigin, incidentRayDirection, model.spheres);
+//    if (!intersectionResults.intersected) {
+//		return skyBoxImageSphereTexture.sampleDirectionFromMiddle(incidentRayDirection);
+//    }
+      if (!intersectionResults.intersected)
+			return skyBoxImageSphereTexture.sampleDirectionFromMiddle(incidentRayDirection);
+      else if(exercise == ExerciseEnum.EX_3_1_Intersection_One_sphere)  
+    	  	return new Vector3f(0);
+      else if(exercise.ordinal() >= ExerciseEnum.EX_3_2_Intersection_One_sphere_with_color.ordinal() && exercise.ordinal() <= ExerciseEnum.EX_3_4_Intersection_Finding_the_nearest_sphere.ordinal()) {
+    	  	ModelMaterial shpereMaterial = model.materials.get(intersectionResults.intersectedSphere.materialIndex);
+			return new Vector3f(shpereMaterial.color);
+      }
+	
+        ModelSphere intersectedSphere = intersectionResults.intersectedSphere;
+        ModelMaterial intersectedSphereMaterial = model.materials.get(intersectedSphere.materialIndex);
+        Vector3f intersectionSpherePoint = intersectionResults.intersectionPoint;
+ 
+        Vector3f returnedColor = new Vector3f();
+        
+        Vector3f color = new Vector3f(intersectedSphereMaterial.color);
+        float kColor = intersectedSphereMaterial.kColor;
+        color.mul(kColor);
+        returnedColor.add(color);
+
+	    if(exercise.ordinal() >= ExerciseEnum.EX_4_1_Lighting_Diffusive.ordinal()) {
+//	        Vector3f directLight = calcDirectLight(incidentRayOrigin, incidentRayDirection, depthLevel, model, intersectionResults.linePointOutside, intersectionResults.intersectedSphere, intersectionResults.normal, intersectionResults.intersectionPoint);
+//	        float kDirect = intersectedSphereMaterial.kDirect;
+//	        directLight.mul(kDirect);
+//	        returnedColor.add(directLight);
+
+	    	//direct light
+	    	Vector3f directLightIntensity = new Vector3f(0);
+	    	int lightCounter = 1;
+	        for (ModelLight light : model.lights) {
+	    	    if(lightCounter++>1 && exercise.ordinal() < ExerciseEnum.EX_7.ordinal() )
+	    	    	break;
+	    	    	
+    	    	Vector3f intersectionPoint = intersectionResults.intersectionPoint;
+    	    	Vector3f normal = intersectionResults.normal;
+
+	        	boolean pointInShadow = false;
+	    	    if(exercise.ordinal() >= ExerciseEnum.EX_6.ordinal()) {
+		        	Vector3f lightDir = new Vector3f(light.location).sub(intersectionPoint).normalize();
+		            Vector3f shadowRayOrigin = (lightDir.dot(normal) < 0)
+		                    ? new Vector3f(intersectionPoint).sub(new Vector3f(normal).mul(0.01f))
+		                    : new Vector3f(intersectionPoint).add(new Vector3f(normal).mul(0.01f));
+		            IntersectionResults lightIntersectionResults = rayIntersection(shadowRayOrigin, lightDir, model.spheres);
+		            pointInShadow = lightIntersectionResults.intersected;
+	    	    }
+
+	    	    if(!pointInShadow) { 
+		            Vector3f lightIntensity = lightingEquation(intersectionPoint, normal, light.location,
+		            		intersectedSphereMaterial.kd, 
+		            		intersectedSphereMaterial.ks, 
+		            		intersectedSphereMaterial.ka, 
+		            		intersectedSphereMaterial.shininess);
+		            directLightIntensity.add(lightIntensity);
+	    	    } else 
+	    	    	directLightIntensity.add(intersectedSphereMaterial.ka);
+	    	    
+	        }
+	    	//	        Vector3f directLight = calcDirectLight(incidentRayOrigin, incidentRayDirection, depthLevel, model, intersectionResults.linePointOutside, intersectionResults.intersectedSphere, intersectionResults.normal, intersectionResults.intersectionPoint);
+	        float kDirect = intersectedSphereMaterial.kDirect;
+	        directLightIntensity.mul(kDirect);
+	        returnedColor.add(directLightIntensity);
+	    }
+
+    	//texture
+	    if(exercise.ordinal() >= ExerciseEnum.EX_5___Texture.ordinal()) {
+	        float kTexture = intersectedSphereMaterial.kTexture;
+	        int intersectedSphereTextureIndex = intersectedSphere.textureIndex;
+	        SphereTexture intersectedSphereTexture = model.skyBoxImageSphereTextures.get(intersectedSphereTextureIndex);
+	        Vector3f intersectionPointDirection = new Vector3f(intersectionSpherePoint).sub(intersectedSphere.center).normalize();
+	        Vector3f sphereTextureColor = intersectedSphereTexture.sampleDirectionFromMiddle(intersectionPointDirection);
+	        sphereTextureColor.mul(kTexture);
+	        returnedColor.add(sphereTextureColor);
+	    }
+	    
+    	//reflected light
+	    if(exercise.ordinal() >= ExerciseEnum.EX_8.ordinal()) {
+	        Vector3f reflectedRayDir = calcReflectionRay(incidentRayDirection, intersectionResults.normal);
+	        Vector3f reflectedLight = rayTracing(intersectionResults.intersectionPoint, reflectedRayDir, depthLevel + 1, model, skyBoxImageSphereTexture);
+	        float kReflection = intersectedSphereMaterial.kReflection;
+	        reflectedLight.mul(kReflection);
+	        returnedColor.add(reflectedLight);
+	    }
+        
+    	//refracted light
+	    if(exercise.ordinal() >= ExerciseEnum.EX_9.ordinal()) {
+//	        Vector3f transmittedRayDir = calcTransmissionRay(incidentRayDirection, intersectionResults.normal, 1.000293f, model.materials.get(intersectionResults.intersectedSphere.materialIndex).refractiveIndex);
+	    	float refractiveIndexIntersectedSphere = model.materials.get(intersectionResults.intersectedSphere.materialIndex).refractiveIndex;
+	    	boolean rayFromOutside = intersectionResults.linePointOutside;
+	    	Vector3f transmittedRayDir = calcTransmissionRay(incidentRayDirection, intersectionResults.normal, refractiveIndexIntersectedSphere, rayFromOutside);
+	        // transmittedRayOrig = intersectionPoint - PointNormal * (1.0f / 100.0f)
+	        Vector3f transmittedRayOrig = new Vector3f(intersectionResults.normal).mul(-1.0f/100.0f).add(intersectionResults.intersectionPoint);
+	        
+	        Vector3f transmittedLight = rayTracing(transmittedRayOrig, transmittedRayDir, depthLevel + 1, model, skyBoxImageSphereTexture);
+	        float kRefraction = model.materials.get(intersectionResults.intersectedSphere.materialIndex).kRefraction;
+	        transmittedLight.mul(kRefraction);
+	        returnedColor.add(transmittedLight);
+	    }
+
+        return returnedColor;
+    }
+	
+	
+	private static Vector3f calcPixelDirection(int x, int y, int imageWidth, int imageHeight, float fovXdegree) {
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+/////////////// solution ///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+		// Calculate the field of view (FOV) in radians
+		float fovX = (float) (fovXdegree / 180 * Math.PI);
+		float fovY = (float) fovX * imageHeight / imageWidth;
+
+		// Calculate the direction of the ray for the pixel (x, y)
+		float tanX = (float)Math.tan(fovX / 2.0);
+		float dir_x = -tanX + 2*x*tanX / (imageWidth - 1);
+		float tanY = (float)Math.tan(fovY / 2.0);
+		float dir_y = -tanY + 2*y*tanY / (imageHeight - 1);
+		
+		// Calculate the direction of the ray from the camera through the pixel
+		Vector3f pixelRayDirection = new Vector3f(dir_x, dir_y, -1.0f).normalize();
+		
+		return pixelRayDirection;
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+/////////////// solution ///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+	}
+	
+	// Calculates the intersection points between a line and a sphere
+	// Returns true if there are intersection points, false otherwise
+	private static IntersectionResults rayIntersection(Vector3f rayStart, Vector3f rayDirection, ModelSphere sphere) {
+
+		Vector3f sphereCenter = sphere.center; 
+		float sphereRadius = sphere.radius; 
+
+		// Project the lineToSphere vector onto the line direction to find the distance
+		// from
+		// the line point to the closest point on the line to the sphere center
+		float tm = new Vector3f(sphereCenter).sub(rayStart).dot(rayDirection);
+
+		// If the closest point on the line is behind the line point, then there are no
+		// intersection points
+		if (tm < 0) 
+			return new IntersectionResults(false);
+
+		// Calculate the distance from the closest point on the line to the sphere
+		// center
+        Vector3f pm = new Vector3f(rayStart).add(new Vector3f(rayDirection).mul(tm));
+		float pmDistance = pm.distance(sphereCenter);
+
+		// If the distance from the closest point to the sphere center is greater than
+		// the sphere radius,
+		// then there are no intersection points
+		if (pmDistance > sphereRadius) 
+			return new IntersectionResults(false);
+
+		// Calculate the distance along the line from the closest point to the
+		// intersection points
+		float dt = (float) Math.sqrt(sphereRadius * sphereRadius - pmDistance * pmDistance);
+
+		// Calculate the intersection points
+		if (dt > tm) {
+			Vector3f firstIntersectionPoint = pm.add(new Vector3f(rayDirection).mul(dt));
+			return new IntersectionResults(
+					true, //intersected
+					firstIntersectionPoint, //firstIntersectionPoint
+					new Vector3f(sphereCenter).sub(firstIntersectionPoint).normalize(), //normal
+					false, //linePointOutside
+					sphere); //intersectedSphere
+		} else {
+			Vector3f firstIntersectionPoint = pm.sub(new Vector3f(rayDirection).mul(dt));
+			return new IntersectionResults(
+					true, //intersected
+					firstIntersectionPoint, //firstIntersectionPoint
+					new Vector3f(firstIntersectionPoint).sub(sphereCenter).normalize(), //normal
+					true, //linePointOutside
+					sphere); //intersectedSphere
+		}
+		
+		
+		
+//	    Vector3f sphereCenter = sphere.center; 
+//	    float sphereRadius = sphere.radius; 
+//
+//	    // Normalize a copy of rayDirection to avoid modifying the original vector
+//	    Vector3f normalizedDirection = new Vector3f(rayDirection).normalize();
+//
+//	    // Calculate the vector from the ray start to the sphere center
+//	    Vector3f cMinusE = new Vector3f(sphereCenter).sub(rayStart);
+//
+//	    // Dot product of (C - E) and the normalized direction
+//	    float cMinusEdotD = cMinusE.dot(normalizedDirection);
+//
+//	    // Compute the discriminant
+//	    float disc = cMinusEdotD * cMinusEdotD - cMinusE.dot(cMinusE) + sphereRadius * sphereRadius;
+//
+//	    // If the discriminant is negative, no intersection occurs
+//	    if (disc < 0) {
+//	        return new IntersectionResults(false);
+//	    }
+//
+//	    // Calculate the square root of the discriminant
+//	    float sqrtDisc = (float) Math.sqrt(disc);
+//
+//	    // Calculate t1 and t2 (the two intersection points along the ray)
+//	    float t1 = cMinusEdotD - sqrtDisc;
+//	    float t2 = cMinusEdotD + sqrtDisc;
+//
+//	    // If both t1 and t2 are negative, the sphere is behind the ray start
+//	    if (t1 < 0 && t2 < 0) {
+//	        return new IntersectionResults(false);
+//	    }
+//
+//	    // Check if the ray starts outside the sphere
+//	    boolean linePointOutside = cMinusE.length() > sphereRadius;
+//
+//	    // Choose the correct intersection point: t1 if starting outside, otherwise t2
+//	    float t = linePointOutside ? (t1 > 0 ? t1 : t2) : (t2 > 0 ? t2 : t1);
+//
+//	    // Calculate the first intersection point
+//	    Vector3f firstIntersectionPoint = new Vector3f(rayStart).add(new Vector3f(normalizedDirection).mul(t));
+//
+//	    // Calculate the normal at the intersection point
+//	    Vector3f normalAtIntersection = new Vector3f(firstIntersectionPoint).sub(sphereCenter).normalize();
+//
+//	    // Return the intersection results
+//	    return new IntersectionResults(
+//	            true, // Intersection occurred
+//	            firstIntersectionPoint, // First intersection point
+//	            normalAtIntersection, // Normal at the intersection point
+//	            linePointOutside, // Whether the ray starts outside the sphere
+//	            sphere); // The intersected sphere
+		
+//		Vector3f sphereCenter = sphere.center; 
+//		float sphereRadius = sphere.radius; 
+//
+//	    rayDirection.normalize();
+//		
+//		Vector3f cMinusE = new Vector3f(sphereCenter).sub(rayStart);
+//		float cMinusEdotD = cMinusE.dot(rayDirection);
+//		float disc = cMinusEdotD*cMinusEdotD - cMinusE.dot(cMinusE) + sphereRadius*sphereRadius;
+//		
+//		if(disc<0)
+//			return new IntersectionResults(false);
+//		
+//		float sqrtDisc = (float)Math.sqrt(disc);
+//		float t1 = cMinusEdotD - sqrtDisc;
+//		float t2 = cMinusEdotD + sqrtDisc;
+//
+//		boolean linePointOutside = cMinusE.length() > sphereRadius;
+//	    float t = linePointOutside ? t1 : t2;
+//	    
+//	    Vector3f firstIntersectionPoint = new Vector3f(rayStart).add(new Vector3f(rayDirection).mul(t));
+//			
+//	    Vector3f normalAtIntersection = new Vector3f(firstIntersectionPoint).sub(sphereCenter).normalize();
+//
+//	    return new IntersectionResults(
+//	            true, // There is an intersection
+//	            firstIntersectionPoint, // First intersection point
+//	            normalAtIntersection, // Normal at the intersection point
+//	            linePointOutside, // Whether the ray starts outside the sphere
+//	            sphere); // The sphere that was intersected
+			
+		
+		
+//		Vector3f sphereCenter = sphere.center; 
+//		float sphereRadius = sphere.radius; 
+//
+//		// Calculate the direction from the line point to the sphere center
+//		Vector3f lineToSphere = new Vector3f(sphereCenter).sub(rayStart);
+//
+//		// Project the lineToSphere vector onto the line direction to find the distance
+//		// from
+//		// the line point to the closest point on the line to the sphere center
+//		float t = lineToSphere.dot(rayDirection);
+//
+//		// If the closest point on the line is behind the line point, then there are no
+//		// intersection points
+//		if (t < 0) 
+//			return new IntersectionResults(false);
+//
+//		// Calculate the distance from the closest point on the line to the sphere
+//		// center
+//        Vector3f closestPoint = new Vector3f(rayStart).add(new Vector3f(rayDirection).mul(t));
+//		float distance = closestPoint.distance(sphereCenter);
+//
+//		// If the distance from the closest point to the sphere center is greater than
+//		// the sphere radius,
+//		// then there are no intersection points
+//		if (distance > sphereRadius) 
+//			return new IntersectionResults(false);
+//
+//		// Calculate the distance along the line from the closest point to the
+//		// intersection points
+//		float dt = (float) Math.sqrt(sphereRadius * sphereRadius - distance * distance);
+//
+//		// Calculate the intersection points
+//		if (dt > t) {
+//			Vector3f firstIntersectionPoint = closestPoint.add(new Vector3f(rayDirection).mul(dt));
+//			return new IntersectionResults(
+//					true, //intersected
+//					firstIntersectionPoint, //firstIntersectionPoint
+//					new Vector3f(sphereCenter).sub(firstIntersectionPoint).normalize(), //normal
+//					false, //linePointOutside
+//					sphere); //intersectedSphere
+//		} else {
+//			Vector3f firstIntersectionPoint = closestPoint.sub(new Vector3f(rayDirection).mul(dt));
+//			return new IntersectionResults(
+//					true, //intersected
+//					firstIntersectionPoint, //firstIntersectionPoint
+//					new Vector3f(firstIntersectionPoint).sub(sphereCenter).normalize(), //normal
+//					true, //linePointOutside
+//					sphere); //intersectedSphere
+//		}
+	}
+
+	private static IntersectionResults rayIntersection(Vector3f rayStart, Vector3f rayDirection, List<ModelSphere> spheres) {
+
+		float nearerIntersectionDistance = Float.MAX_VALUE;
+		AtomicBoolean currentLinePointOutside = new AtomicBoolean();
+
+		// Iterate over all spheres to check intersection
+		IntersectionResults methodIntersectionResults = new IntersectionResults(false);
+		for (int i = 0; i < spheres.size(); i++) {
+			ModelSphere sphere = spheres.get(i);
+
+			currentLinePointOutside.set(false);
+			IntersectionResults currentIntersectionResults = rayIntersection(rayStart, rayDirection, sphere);
+			if (currentIntersectionResults.intersected) {
+				float currentIntersectionDistance = -currentIntersectionResults.intersectionPoint.z; // Assuming negative Z is nearer
+
+				boolean depthTest = exercise.ordinal() >= ExerciseEnum.EX_3_4_Intersection_Finding_the_nearest_sphere.ordinal();
+				if (currentIntersectionDistance < nearerIntersectionDistance || !depthTest) {
+					nearerIntersectionDistance = currentIntersectionDistance;
+					methodIntersectionResults = currentIntersectionResults; 
+				}
+			}
+		}
+
+		return methodIntersectionResults;
+	}
+	
+
+	private static Vector3f lightingEquation(Vector3f point, Vector3f PointNormal, Vector3f LightPos, Vector3f Kd, Vector3f Ks, Vector3f Ka, float shininess) {
+
+//		// Diffuse component: Kd * (N · L)
+//		float diffuse = Math.max(0.0f, Kd * NdotL);
+//
+//		// Specular component: Ks * (R · V)^n (guarding against negative R · V)
+//		float RdotV = Math.max(0.0f, ReflectionDirection.dot(EyeDirection));
+//		float specular = Ks * (float) Math.pow(RdotV, shininess);
+//
+//		// Ambient component: Ka
+//		float ambient = Math.max(0.0f, Ka);
+
+		// Normalize point normal
+		PointNormal.normalize();
+
+		// LightDirection
+		Vector3f LightDirection = new Vector3f(LightPos).sub(point).normalize();
+
+        Vector3f returnedColor = new Vector3f();
+
+        //Diffuse color calculation
+	    if(exercise.ordinal() >= ExerciseEnum.EX_4_1_Lighting_Diffusive.ordinal()) {
+			float NdotL = PointNormal.dot(LightDirection);
+			// Diffuse component: Kd * (N · L)
+			Vector3f diffuse = new Vector3f(Kd).mul( Math.max(0.0f, NdotL) );
+	        returnedColor.add(diffuse);
+	    }
+
+        //Ambient color calculation
+	    if(exercise.ordinal() >= ExerciseEnum.EX_4_2_Lighting_Ambient.ordinal()) {
+			// Ambient component: Ka
+			Vector3f ambient = new Vector3f(Ka);
+	        returnedColor.add(ambient);
+	    }
+
+	    //Specular color calculation
+	    if(exercise.ordinal() >= ExerciseEnum.EX_4_3_Lighting_Specular.ordinal()) {
+			// EyeDirection
+			Vector3f EyePos = new Vector3f(0, 0, 0);
+			Vector3f EyeDirection = new Vector3f(EyePos).sub(point).normalize();
+
+			// Calculate ReflectionDirection based on LightDirection and PointNormal
+			float NdotL = PointNormal.dot(LightDirection);
+			Vector3f ReflectionDirection;
+			if (NdotL > 0) {
+				ReflectionDirection = new Vector3f(PointNormal).mul(2.0f * NdotL).sub(LightDirection).normalize();
+			} else {
+				ReflectionDirection = new Vector3f(0, 0, 0);
+			}
+
+			// Specular component: Ks * (R · V)^n (guarding against negative R · V)
+			float RdotV = Math.max(0.0f, ReflectionDirection.dot(EyeDirection));
+			Vector3f specular = new Vector3f(Ks).mul((float) Math.pow(RdotV, shininess));
+	        returnedColor.add(specular);
+	    }
+
+		return returnedColor;
+	}
+	
+	
+    
+    private static Vector3f calcReflectionRay(Vector3f incidentRayDirection, Vector3f normal) {
+        return new Vector3f(incidentRayDirection).sub(new Vector3f(normal).mul(2.0f * incidentRayDirection.dot(normal)));
+    }
+
+/*    
+    private static Vector3f calcTransmissionRay(Vector3f incidentRay, Vector3f normal, float n1, float n2) {
+    	// Calculate the dot product of incident ray and surface normal
+        float cosTheta1 = incidentRay.dot(normal);
+
+    	// Calculate the angle of incidence in radians
+        float theta1 = (float) Math.acos(cosTheta1);
+
+    	// Calculate the angle of refraction using Snell's law
+        float sinTheta2 = (n1 / n2) * (float) Math.sin(theta1);
+
+    	// Check for total internal reflection
+        if (sinTheta2 > 1.0f) return new Vector3f(0.0f); // Total internal reflection
+
+    	// Calculate the direction vector of the transmission ray
+        Vector3f direction = refract(incidentRay, normal, n1, n2);
+        return direction;
+    }
+*/
+/*
+    private static Vector3f calcTransmissionRay(Vector3f incidentRay, Vector3f normal, float refractiveIndexIntersectedSphere, boolean rayFromOutside) {
+
+    	float refractiveIndexAir = 1.000293f;
+    	float n1, n2;
+    	if(rayFromOutside) {
+    		n1 = refractiveIndexAir;
+    		n2 = refractiveIndexIntersectedSphere;
+    	} else {
+    		n1 = refractiveIndexIntersectedSphere;
+    		n2 = refractiveIndexAir;
+    	}
+    	
+    	// Calculate the dot product of incident ray and surface normal
+        float cosTheta1 = incidentRay.dot(normal);
+
+    	// Calculate the angle of incidence in radians
+        float theta1 = (float) Math.acos(cosTheta1);
+
+    	// Calculate the angle of refraction using Snell's law
+        float sinTheta2 = (n1 / n2) * (float) Math.sin(theta1);
+
+    	// Check for total internal reflection
+        if (sinTheta2 > 1.0f) return new Vector3f(0.0f); // Total internal reflection
+
+    	// Calculate the direction vector of the transmission ray
+        Vector3f direction = refract(incidentRay, normal, n1, n2);
+        return direction;
+    }
+    private static Vector3f refract(Vector3f incidentRay, Vector3f normal, float n1, float n2) {
+        float cosTheta1 = incidentRay.dot(normal);  // Dot product between incident ray and normal
+        float ratio = n1 / n2;  // Refractive index ratio
+        float sinTheta2Sq = ratio * ratio * (1.0f - cosTheta1 * cosTheta1);  // sin^2(theta2)
+
+        // Check for total internal reflection
+        if (sinTheta2Sq > 1.0f) {
+            return new Vector3f(0, 0, 0);  // Total internal reflection, return zero vector
+        }
+
+        float cosTheta2 = (float) Math.sqrt(1.0f - sinTheta2Sq);  // cos(theta2)
+
+        // Calculate refraction direction
+        Vector3f refractedRay = new Vector3f();
+        incidentRay.mul(ratio, refractedRay)
+                   .fma(ratio * cosTheta1 - cosTheta2, normal);  // Refracted ray calculation
+        return refractedRay;
+    }
+*/
+     
+	private static Vector3f calcTransmissionRay(Vector3f incidentRay, Vector3f normal, float refractiveIndexIntersectedSphere, boolean rayFromOutside) {
+	    float refractiveIndexAir = 1.000293f;
+	    float n1, n2;
+	
+	    // Determine indices of refraction based on the ray direction
+	    if (rayFromOutside) {
+	        n1 = refractiveIndexAir;
+	        n2 = refractiveIndexIntersectedSphere;
+	    } else {
+	        n1 = refractiveIndexIntersectedSphere;
+	        n2 = refractiveIndexAir;
+	    }
+	
+	    // Calculate dot product of incident ray and normal
+	    float cosTheta1 = incidentRay.dot(normal);
+	
+	    // Invert the normal if the ray is inside the object
+	    if (cosTheta1 < 0) {
+	        cosTheta1 = -cosTheta1;
+	    } else {
+	        normal.negate();
+	    }
+	
+	    // Calculate the ratio of refractive indices and squared terms for Snell's law
+	    float ratio = n1 / n2;
+	    float sinTheta2Sq = ratio * ratio * (1.0f - cosTheta1 * cosTheta1);
+	
+	    // Check for total internal reflection (if sin^2(theta2) > 1.0)
+	    if (sinTheta2Sq > 1.0f) {
+	        return new Vector3f(0.0f);  // Total internal reflection
+	    }
+	
+	    // Calculate cosTheta2 using trigonometric identity
+	    float cosTheta2 = (float) Math.sqrt(1.0f - sinTheta2Sq);
+	
+	    // Compute the transmission direction using Snell's law
+	    Vector3f transmittedDir = new Vector3f(incidentRay).mul(ratio).add(new Vector3f(normal).mul(ratio * cosTheta1 - cosTheta2));
+	
+	    return transmittedDir.normalize();  // Return the normalized direction
+	}
+ }	
+
+
+	
+	

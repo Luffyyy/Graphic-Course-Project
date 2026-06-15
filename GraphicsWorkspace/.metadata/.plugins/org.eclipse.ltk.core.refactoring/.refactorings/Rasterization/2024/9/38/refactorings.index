@@ -1,0 +1,31 @@
+1726388605834	Rename field 'position'
+1726388630267	Rename field 'textureCoord'
+1726390020701	Rename field 'WIN_WIDTH'
+1726390037026	Rename field 'WIN_HEIGHT'
+1726390057267	Rename field 'WIN_SIZE'
+1726391655620	Rename method 'writingPixel'
+1726392264634	Rename enum constant 'FACE_VERTEXES'
+1726402857421	Rename local variable 'color'
+1726403071252	Rename local variable 'CurrentPoint'
+1726557155213	Rename type 'Model'
+1726557516674	Delete element
+1726558032008	Rename field 'model'
+1726558830175	Rename type 'Scene'
+1726569463289	Delete element
+1726570398395	Rename method 'saveImageAsBMP'
+1726573028508	Delete element
+1726575102733	Rename type 'Object'
+1726578138416	Delete element
+1726578140957	Delete element
+1726579596602	Delete elements
+1726581180944	Rename field 'viewM'
+1726742140214	Rename field 'scene'
+1726746141088	Rename field 'exNum'
+1726911534439	Rename method 'DrawLineDDA'
+1726911545473	Rename method 'DrawLineBresenham'
+1726911561489	Rename method 'LineFrom2Points'
+1726911572884	Rename method 'DistanceOfPointFromLine'
+1726911581052	Rename method 'BarycentricInterpolation_f'
+1726911590198	Rename method 'BarycentricInterpolation_v2'
+1726911599635	Rename method 'BarycentricInterpolation_v3'
+1726911606989	Rename method 'BarycentricInterpolation_color'
