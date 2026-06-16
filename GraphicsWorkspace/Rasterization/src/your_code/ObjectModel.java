@@ -4,7 +4,7 @@
  * Daniel Rozentsvaig
  * Tomer Roll
  * 
- * lab_9
+ * lab_10
  */
 
 package your_code;
@@ -107,7 +107,14 @@ public class ObjectModel {
 	public void render(IntBufferWrapper intBufferWrapper) {
 		exercise = worldModel.exercise;
 
-
+		// Convert light to eye space
+		Vector4f lightHomogeneous = new Vector4f(worldModel.lightPositionWorldCoordinates, 1.0f);
+		lookatM.transform(lightHomogeneous);
+		lightPositionEyeCoordinates = new Vector3f(
+				lightHomogeneous.x / lightHomogeneous.w,
+				lightHomogeneous.y / lightHomogeneous.w,
+				lightHomogeneous.z / lightHomogeneous.w
+		);
 		
 		if (verticesData != null) {
 			for (VertexData vertexData : verticesData) {
@@ -152,8 +159,18 @@ public class ObjectModel {
 		///////////////////////////////////////////////////////////////////////////////////
 		transformNormalFromObjectCoordToEyeCoordAndDrawIt(intBufferWrapper, vertex);
 
-
-
+		// Gouraud: Calc intensity once per vertex
+		if (worldModel.displayType == DisplayTypeEnum.LIGHTING_GOURARD) {
+			vertex.lightingIntensity0to1 = lightingEquation(
+					vertex.pointEyeCoordinates,
+					vertex.normalEyeCoordinates,
+					lightPositionEyeCoordinates,
+					worldModel.lighting_Diffuse,
+					worldModel.lighting_Specular,
+					worldModel.lighting_Ambient,
+					worldModel.lighting_sHininess
+			);
+		}
 	}
 
 	private void transformNormalFromObjectCoordToEyeCoordAndDrawIt(IntBufferWrapper intBufferWrapper, VertexData vertex) {
@@ -165,6 +182,10 @@ public class ObjectModel {
 		modelviewM.get3x3(modelviewM3x3);
 		vertex.normalEyeCoordinates = new Vector3f();
 		modelviewM3x3.transform(vertex.normalObjectCoordinates, vertex.normalEyeCoordinates);
+		
+		// Ensure unit length for lighting math
+		vertex.normalEyeCoordinates.normalize();
+
 		if (worldModel.displayNormals) {
 			// drawing normals
 			Vector3f t1 = new Vector3f(vertex.normalEyeCoordinates);
@@ -188,10 +209,24 @@ public class ObjectModel {
 	
 	private void rasterization(IntBufferWrapper intBufferWrapper, VertexData vertex1, VertexData vertex2, VertexData vertex3, Vector3f faceColor) {
 
+		// Face normal calculation using cross product
 		Vector3f faceNormal = new Vector3f(vertex2.pointEyeCoordinates).sub(vertex1.pointEyeCoordinates)
 					.cross(new Vector3f(vertex3.pointEyeCoordinates).sub(vertex1.pointEyeCoordinates))
 					.normalize();
 		
+		// Flat: Calc intensity once per face
+		float flatIntensity = 0.0f;
+		if (worldModel.displayType == DisplayTypeEnum.LIGHTING_FLAT) {
+			flatIntensity = lightingEquation(
+					vertex1.pointEyeCoordinates,
+					faceNormal,
+					lightPositionEyeCoordinates,
+					worldModel.lighting_Diffuse,
+					worldModel.lighting_Specular,
+					worldModel.lighting_Ambient,
+					worldModel.lighting_sHininess
+			);
+		}
 
 		if (worldModel.displayType == DisplayTypeEnum.FACE_EDGES) {
 			
@@ -219,10 +254,50 @@ public class ObjectModel {
 						} else if (worldModel.displayType == DisplayTypeEnum.INTERPOlATED_VERTEX_COLOR) {
 							fragmentData.pixelColor = bc.interpolate(vertex1.color, vertex2.color, vertex3.color);
 						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_FLAT) {
+							fragmentData.pixelIntensity0to1 = flatIntensity;
 						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_GOURARD) {
+							// Interpolate vertex intensities
+							fragmentData.pixelIntensity0to1 = bc.interpolate(
+									vertex1.lightingIntensity0to1,
+									vertex2.lightingIntensity0to1,
+									vertex3.lightingIntensity0to1
+							);
 						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_PHONG) {
+							// Interpolate position and normals for per-pixel lighting
+							fragmentData.pointEyeCoordinates = bc.interpolate(
+									vertex1.pointEyeCoordinates,
+									vertex2.pointEyeCoordinates,
+									vertex3.pointEyeCoordinates
+							);
+							fragmentData.normalEyeCoordinates = bc.interpolate(
+									vertex1.normalEyeCoordinates,
+									vertex2.normalEyeCoordinates,
+									vertex3.normalEyeCoordinates
+							).normalize();
 						} else if (worldModel.displayType == DisplayTypeEnum.TEXTURE) {
+							// Pass uv mapping coords
+							fragmentData.textureCoordinates = bc.interpolate(
+									vertex1.textureCoordinates,
+									vertex2.textureCoordinates,
+									vertex3.textureCoordinates
+							);
 						} else if (worldModel.displayType == DisplayTypeEnum.TEXTURE_LIGHTING) {
+							// Pass uv + normals + positions for phong-shaded texturing
+							fragmentData.textureCoordinates = bc.interpolate(
+									vertex1.textureCoordinates,
+									vertex2.textureCoordinates,
+									vertex3.textureCoordinates
+							);
+							fragmentData.pointEyeCoordinates = bc.interpolate(
+									vertex1.pointEyeCoordinates,
+									vertex2.pointEyeCoordinates,
+									vertex3.pointEyeCoordinates
+							);
+							fragmentData.normalEyeCoordinates = bc.interpolate(
+									vertex1.normalEyeCoordinates,
+									vertex2.normalEyeCoordinates,
+									vertex3.normalEyeCoordinates
+							).normalize();
 						}
 						Vector3f pixelColor = fragmentProcessing(fragmentData);
 						var z = bc.interpolate(
@@ -250,10 +325,50 @@ public class ObjectModel {
 		} else if (worldModel.displayType == DisplayTypeEnum.INTERPOlATED_VERTEX_COLOR) {
 			return fragmentData.pixelColor;
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_FLAT) {
+			return new Vector3f(fragmentData.pixelIntensity0to1);
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_GOURARD) {
+			return new Vector3f(fragmentData.pixelIntensity0to1);
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_PHONG) {
+			// Per-pixel Phong calculation
+			float intensity = lightingEquation(
+					fragmentData.pointEyeCoordinates,
+					fragmentData.normalEyeCoordinates,
+					lightPositionEyeCoordinates,
+					worldModel.lighting_Diffuse,
+					worldModel.lighting_Specular,
+					worldModel.lighting_Ambient,
+					worldModel.lighting_sHininess
+			);
+			return new Vector3f(intensity);
 		} else if (worldModel.displayType == DisplayTypeEnum.TEXTURE) {
+			// Map UV buffer to exact texture indices
+			int textureWidth = textureImageIntBufferWrapper.getImageWidth();
+			int textureHeight = textureImageIntBufferWrapper.getImageHeight();
+
+			int texX = Math.round(fragmentData.textureCoordinates.x * (textureWidth - 1));
+			int texY = Math.round(fragmentData.textureCoordinates.y * (textureHeight - 1));
+
+			return textureImageIntBufferWrapper.getPixel(texX, texY);
 		} else if (worldModel.displayType == DisplayTypeEnum.TEXTURE_LIGHTING) {
+			// Mix texture sampling with the Phong lighting output
+			int textureWidth = textureImageIntBufferWrapper.getImageWidth();
+			int textureHeight = textureImageIntBufferWrapper.getImageHeight();
+
+			int texX = Math.round(fragmentData.textureCoordinates.x * (textureWidth - 1));
+			int texY = Math.round(fragmentData.textureCoordinates.y * (textureHeight - 1));
+
+			Vector3f textureColor = textureImageIntBufferWrapper.getPixel(texX, texY);
+
+			float intensity = lightingEquation(
+					fragmentData.pointEyeCoordinates,
+					fragmentData.normalEyeCoordinates,
+					lightPositionEyeCoordinates,
+					worldModel.lighting_Diffuse,
+					worldModel.lighting_Specular,
+					worldModel.lighting_Ambient,
+					worldModel.lighting_sHininess
+			);
+			return new Vector3f(textureColor).mul(intensity);
 		}
 		return new Vector3f();
 		
@@ -342,11 +457,31 @@ public class ObjectModel {
 	private static Vector3f lightingEquation(Vector3f point, Vector3f PointNormal, Vector3f LightPos, Vector3f Kd,
 			Vector3f Ks, Vector3f Ka, float shininess) {
 
-		Vector3f returnedColor = new Vector3f();
+		// Ambient + Diffuse + Specular (Phong model)
+		Vector3f N = new Vector3f(PointNormal).normalize();
+		Vector3f L = new Vector3f(LightPos).sub(point).normalize();
+		Vector3f V = new Vector3f(point).negate().normalize();
 
+		float diffuseFactor = Math.max(N.dot(L), 0.0f);
+		Vector3f diffuse = new Vector3f(Kd).mul(diffuseFactor);
 
-		return returnedColor;
+		Vector3f R = new Vector3f(N).mul(2.0f * N.dot(L)).sub(L).normalize();
+		float specularFactor = 0.0f;
+
+		if (diffuseFactor > 0.0f) {
+			specularFactor = (float) Math.pow(Math.max(V.dot(R), 0.0f), shininess);
+		}
+
+		Vector3f specular = new Vector3f(Ks).mul(specularFactor);
+		Vector3f ambient = new Vector3f(Ka);
+
+		Vector3f result = new Vector3f(ambient).add(diffuse).add(specular);
+
+		// Clamp attributes between 0.0f and 1.0f
+		result.x = Math.max(0.0f, Math.min(1.0f, result.x));
+		result.y = Math.max(0.0f, Math.min(1.0f, result.y));
+		result.z = Math.max(0.0f, Math.min(1.0f, result.z));
+
+		return result;
 	}	
 }
-
-
