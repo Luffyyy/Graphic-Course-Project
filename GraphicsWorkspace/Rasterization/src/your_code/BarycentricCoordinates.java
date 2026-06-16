@@ -1,3 +1,12 @@
+/**
+ * Handed by:
+ * 
+ * Daniel Rozentsvaig
+ * Tomer Roll
+ * 
+ * lab_6
+ */
+
 package your_code;
 
 import org.joml.Vector2f;
@@ -95,8 +104,16 @@ public class BarycentricCoordinates {
 
 	
 	public static void main(String[] args) {
+		var v1 = new Vector3f(5, 1, 0);
+		var v2 = new Vector3f(10, 3, 0);
+		var v3 = new Vector3f(7, 4, 0);
 		
-	
+		var bc = new BarycentricCoordinates(v1, v2, v3);
+		bc.calcCoordinatesForPoint(7, 2);
+		System.out.println("(7,2) is " + (bc.isPointInside() ? "inside triangle" : "outside triangle"));
+		
+		bc.calcCoordinatesForPoint(7, 1);
+		System.out.println("(7,1) is " + (bc.isPointInside() ? "inside triangle" : "outside triangle"));
 	}
 	
 

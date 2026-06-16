@@ -4,7 +4,7 @@
  * Daniel Rozentsvaig
  * Tomer Roll
  * 
- * lab_5
+ * lab_6
  */
 
 package your_code;
@@ -193,9 +193,32 @@ public class ObjectModel {
 
 
 		} else {
+			var v1 = vertex1.pointWindowCoordinates;
+			var v2 = vertex2.pointWindowCoordinates;
+			var v3 = vertex3.pointWindowCoordinates;
 
-
-
+			var bc = new BarycentricCoordinates(v1, v2, v3);
+			var box = calcBoundingBox(v1, v2, v3, imageWidth, imageHeight);
+			
+			for (int x=box.x; x<=box.y; x++) {
+				for (int y=box.z; y<=box.w; y++) {
+					bc.calcCoordinatesForPoint(x, y);
+					if (bc.isPointInside()) {						
+						FragmentData fragmentData = new FragmentData();
+						if (worldModel.displayType == DisplayTypeEnum.FACE_COLOR) {
+							fragmentData.pixelColor = faceColor;
+						} else if (worldModel.displayType == DisplayTypeEnum.INTERPOlATED_VERTEX_COLOR) {
+						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_FLAT) {
+						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_GOURARD) {
+						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_PHONG) {
+						} else if (worldModel.displayType == DisplayTypeEnum.TEXTURE) {
+						} else if (worldModel.displayType == DisplayTypeEnum.TEXTURE_LIGHTING) {
+						}
+						Vector3f pixelColor = fragmentProcessing(fragmentData);
+						intBufferWrapper.setPixel((int) x, (int) y, pixelColor);
+					}
+				}
+			}
 		}
 		
 	}
@@ -204,6 +227,7 @@ public class ObjectModel {
 	private Vector3f fragmentProcessing(FragmentData fragmentData) {
 		
 		if (worldModel.displayType == DisplayTypeEnum.FACE_COLOR) {
+			return fragmentData.pixelColor;
 		} else if (worldModel.displayType == DisplayTypeEnum.INTERPOlATED_VERTEX_COLOR) {
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_FLAT) {
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_GOURARD) {
@@ -276,9 +300,13 @@ public class ObjectModel {
 
 
 	static Vector4i calcBoundingBox(Vector3f p1, Vector3f p2, Vector3f p3, int imageWidth, int imageHeight) { 
+		int minX = (int)Math.floor(Math.max(0, Math.min(Math.min(p1.x, p2.x), p3.x)));
+		int maxX = (int)Math.ceil(Math.min(imageWidth-1, Math.max(Math.max(p1.x, p2.x), p3.x)));
+		
+		int minY = (int)Math.floor(Math.max(0, Math.min(Math.min(p1.y, p2.y), p3.y)));
+		int maxY = (int)Math.ceil(Math.min(imageHeight-1, Math.max(Math.max(p1.y, p2.y), p3.y)));
 
-
-		return new Vector4i();
+		return new Vector4i(minX, maxX, minY, maxY);
 
 	}
 
