@@ -4,7 +4,7 @@
  * Daniel Rozentsvaig
  * Tomer Roll
  * 
- * lab_6
+ * lab_9
  */
 
 package your_code;
@@ -114,6 +114,18 @@ public class BarycentricCoordinates {
 		
 		bc.calcCoordinatesForPoint(7, 1);
 		System.out.println("(7,1) is " + (bc.isPointInside() ? "inside triangle" : "outside triangle"));
+		
+		var v4 = new Vector3f(0, 0, 0);
+		var v5 = new Vector3f(10, 0, 0);
+		var v6 = new Vector3f(5, 10, 0);
+		
+		bc = new BarycentricCoordinates(v4, v5, v6);
+		bc.calcCoordinatesForPoint(5, 0);
+		var ip1 = bc.interpolate(10, 30, 60);
+		bc.calcCoordinatesForPoint(5, 5);
+		var ip2 = bc.interpolate(10, 30, 60);
+		System.out.println("Point (5, 0) interpulation value: " + ip1);
+		System.out.println("Point (5, 5) interpulation value: " + ip2);
 	}
 	
 

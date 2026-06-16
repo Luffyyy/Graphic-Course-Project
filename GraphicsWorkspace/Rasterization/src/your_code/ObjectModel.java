@@ -4,7 +4,7 @@
  * Daniel Rozentsvaig
  * Tomer Roll
  * 
- * lab_8
+ * lab_9
  */
 
 package your_code;
@@ -217,6 +217,7 @@ public class ObjectModel {
 						if (worldModel.displayType == DisplayTypeEnum.FACE_COLOR) {
 							fragmentData.pixelColor = faceColor;
 						} else if (worldModel.displayType == DisplayTypeEnum.INTERPOlATED_VERTEX_COLOR) {
+							fragmentData.pixelColor = bc.interpolate(vertex1.color, vertex2.color, vertex3.color);
 						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_FLAT) {
 						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_GOURARD) {
 						} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_PHONG) {
@@ -224,7 +225,16 @@ public class ObjectModel {
 						} else if (worldModel.displayType == DisplayTypeEnum.TEXTURE_LIGHTING) {
 						}
 						Vector3f pixelColor = fragmentProcessing(fragmentData);
-						intBufferWrapper.setPixel((int) x, (int) y, pixelColor);
+						var z = bc.interpolate(
+								vertex1.pointWindowCoordinates.z,
+								vertex2.pointWindowCoordinates.z,
+								vertex3.pointWindowCoordinates.z);
+
+						var currZ = worldModel.zBuffer[y][x];
+						if (z < currZ) {
+							worldModel.zBuffer[y][x] = z;
+							intBufferWrapper.setPixel((int) x, (int) y, pixelColor);
+						}
 					}
 				}
 			}
@@ -238,6 +248,7 @@ public class ObjectModel {
 		if (worldModel.displayType == DisplayTypeEnum.FACE_COLOR) {
 			return fragmentData.pixelColor;
 		} else if (worldModel.displayType == DisplayTypeEnum.INTERPOlATED_VERTEX_COLOR) {
+			return fragmentData.pixelColor;
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_FLAT) {
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_GOURARD) {
 		} else if (worldModel.displayType == DisplayTypeEnum.LIGHTING_PHONG) {
