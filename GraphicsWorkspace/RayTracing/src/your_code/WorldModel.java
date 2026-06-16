@@ -132,7 +132,25 @@ public class WorldModel {
 			Vector3f color = intersectedSphereMaterial.color;
 			float kColor = intersectedSphereMaterial.kColor;
 
-			return new Vector3f(color).mul(kColor);
+			var kd = calcKdCombinedWithTexture(
+				intersectionPoint,
+				intersectedSphere.center,
+				intersectedSphereTexture,
+				intersectedSphereMaterial.kd,
+				intersectedSphereMaterial.kTexture
+			);
+
+			var light = lightingEquation(
+				intersectionPoint,
+				intersectionNormal,
+				model.lights.get(0).location,
+				kd,
+				intersectedSphereMaterial.ks,
+				intersectedSphereMaterial.ka,
+				intersectedSphereMaterial.shininess
+			);
+
+			return new Vector3f(color).mul(kColor).add(light);
 		}
 		
 		// If we hit nothing, return skybox
@@ -252,10 +270,24 @@ public class WorldModel {
 	static Vector3f lightingEquation(Vector3f point, Vector3f PointNormal, Vector3f LightPos, Vector3f Kd,
 			Vector3f Ks, Vector3f Ka, float shininess) {
 
-		Vector3f returnedColor = new Vector3f();
+		// Direction vector from point to light source
+		Vector3f lightDir = new Vector3f(LightPos).sub(point).normalize();
+		
+		// Diffuse
+		var dotNL = Math.max(PointNormal.dot(lightDir), 0);
+		var diffuse = new Vector3f(Kd).mul(dotNL);
 
-
-		return returnedColor;
+		// Specular
+		// V is point toward camera
+		var V = new Vector3f(point).negate().normalize();
+		var R = new Vector3f(PointNormal).mul(2 * new Vector3f(lightDir).dot(PointNormal)).sub(lightDir).normalize();
+		var dotVR = (float)Math.pow(Math.max(V.dot(R), 0), shininess); // No specular if light doesn't hit the front
+		var specular = new Vector3f(Ks).mul(dotVR);
+		
+		// Ambient
+		var ambient = new Vector3f(Ka);
+		
+		return diffuse.add(specular).add(ambient);
 	}
 
 
@@ -277,8 +309,16 @@ public class WorldModel {
 			SphereTexture intersectedSphereTexture,
 			Vector3f intersectedSphereKd,
 			float kTexture) {
-
-		return null;
+		
+		// Calculate dir vector from middle point of sphere to intersection point
+		var mid = new Vector3f(intersectionPoint).sub(intersectedSphereCenter);
+		
+		// Get texture color in that point in sphere
+		var textureColor = intersectedSphereTexture.sampleDirectionFromMiddle(mid);
+	
+		// Calculate new diffuse (kd)
+		return new Vector3f(intersectedSphereKd).mul(1 - kTexture)
+				.add(textureColor.mul(kTexture));
 	}	
 
 
