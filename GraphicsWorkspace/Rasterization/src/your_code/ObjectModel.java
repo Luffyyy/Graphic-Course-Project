@@ -1,3 +1,12 @@
+/**
+ * Handed by:
+ * 
+ * Daniel Rozentsvaig
+ * Tomer Roll
+ * 
+ * lab_5
+ */
+
 package your_code;
 
 import java.io.IOException;
@@ -175,16 +184,12 @@ public class ObjectModel {
 					.normalize();
 		
 
-
-			intBufferWrapper.setPixel((int) vertex1.pointWindowCoordinates.x, (int) vertex1.pointWindowCoordinates.y, 1f, 1f, 1f);
-			intBufferWrapper.setPixel((int) vertex2.pointWindowCoordinates.x, (int) vertex2.pointWindowCoordinates.y, 1f, 1f, 1f);
-			intBufferWrapper.setPixel((int) vertex3.pointWindowCoordinates.x, (int) vertex3.pointWindowCoordinates.y, 1f, 1f, 1f);
-			
-
-
-
 		if (worldModel.displayType == DisplayTypeEnum.FACE_EDGES) {
 			
+			
+			drawLineDDA(intBufferWrapper,vertex1.pointWindowCoordinates,vertex2.pointWindowCoordinates, 1f, 1f, 1f);
+			drawLineDDA(intBufferWrapper,vertex2.pointWindowCoordinates,vertex3.pointWindowCoordinates, 1f, 1f, 1f);
+			drawLineDDA(intBufferWrapper,vertex3.pointWindowCoordinates,vertex1.pointWindowCoordinates, 1f, 1f, 1f);
 
 
 		} else {
@@ -213,15 +218,61 @@ public class ObjectModel {
 	
 
 	static void drawLineDDA(IntBufferWrapper intBufferWrapper, Vector3f p1, Vector3f p2, float r, float g, float b) {
-		int x1round = Math.round(p1.x);
-		int y1round = Math.round(p1.y);
-		int x2round = Math.round(p2.x);
-		int y2round = Math.round(p2.y);
+	    
+	    int x1round = Math.round(p1.x);
+	    int y1round = Math.round(p1.y);
+	    int x2round = Math.round(p2.x);
+	    int y2round = Math.round(p2.y);
+	    
+	    float dx = x2round - x1round;
+	    float dy = y2round - y1round;
+	    
+	    if (Math.abs(dy) <= Math.abs(dx)) {
+	        if (x1round > x2round) {
+	            int tmp = x1round;
+	            x1round = x2round;
+	            x2round = tmp;
 
+	            tmp = y1round;
+	            y1round = y2round;
+	            y2round = tmp;
+	        }
+	    } else {
+	        if (y1round > y2round) {
+	            int tmp = x1round;
+	            x1round = x2round;
+	            x2round = tmp;
 
-		
+	            tmp = y1round;
+	            y1round = y2round;
+	            y2round = tmp;
+	        }
+	    }
+	    
+	    dx = x2round - x1round;
+	    dy = y2round - y1round;
+	    
+
+	    float a = dy / dx;
+	    
+	    if (Math.abs(dy) <= Math.abs(dx)) {
+	        float y = y1round;
+	        
+	        for (int x = x1round; x <= x2round; x++) {
+	            intBufferWrapper.setPixel(x, Math.round(y), r, g, b);
+	            y = y + a;
+	        }   
+	    } else {
+	        float x = x1round;
+	        
+	        a = (1 / a);
+	        
+	        for (int y = y1round; y <= y2round; y++) {
+	            intBufferWrapper.setPixel(Math.round(x), y, r, g, b);
+	            x = x + a;
+	        }
+	    }
 	}
-
 
 
 	static Vector4i calcBoundingBox(Vector3f p1, Vector3f p2, Vector3f p3, int imageWidth, int imageHeight) { 
