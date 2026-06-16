@@ -4,7 +4,7 @@
  * Daniel Rozentsvaig
  * Tomer Roll
  * 
- * lab_6
+ * lab_8
  */
 
 package your_code;
@@ -131,13 +131,22 @@ public class ObjectModel {
 			Vector4f t = new Vector4f(vertex.pointObjectCoordinates, 1f);
 	
 			// Transform only model transformation
-			modelM.transform(t);
+			new Matrix4f(modelM).mul(new Matrix4f(lookatM)).transform(t);
 			vertex.pointEyeCoordinates = new Vector3f(t.x, t.y, t.z);
+			
+			projectionM.transform(t); // Multiply by projection matrix
+			
+			if (t.w == 0) { // Check before dividing
+				System.err.println("Division by w == 0 in vertexProcessing");
+			}
+			
+			// Do perspective division
+			t = new Vector4f(t.x/t.w, t.y/t.w, t.z/t.w, 1f);
+			// Viewport transform
+			viewportM.transform(t);
 			
 			vertex.pointWindowCoordinates = new Vector3f(t.x, t.y, t.z);
 
-
-			
 
 		// transformation normal from object coordinates to eye coordinates v->normal
 		///////////////////////////////////////////////////////////////////////////////////

@@ -4,7 +4,7 @@
  * Daniel Rozentsvaig
  * Tomer Roll
  * 
- * lab_7
+ * lab_8
  */
 
 package your_code;
@@ -120,9 +120,9 @@ public class WorldModel {
 
 
 			if(projectionType==ProjectionTypeEnum.ORTHOGRAPHIC) {
-
-
-
+				object1.setProjectionM(new Matrix4f().ortho(-1.5f, 1.5f, -1.5f, 1.5f, 0, 100));
+				object1.setViewportM(YoursUtilities.createViewportMatrix(0, 0, imageWidth, imageHeight));
+				object1.setLookatM(new Matrix4f().lookAt(cameraPos, cameraLookAtCenter, cameraUp));
 			}
 
 
