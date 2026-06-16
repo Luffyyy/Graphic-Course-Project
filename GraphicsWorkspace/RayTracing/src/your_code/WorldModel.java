@@ -118,10 +118,24 @@ public class WorldModel {
 	 * @param depthLevel The current depth level of the recursion (for limiting recursion).
 	 * @return The calculated color for the pixel based on ray tracing and lighting effects. */	
 	private static Vector3f rayTracing(Vector3f incidentRayOrigin, Vector3f incidentRayDirection, Model model,
-			SphereTexture skyBoxImageSphereTexture, int depthLevel) {
+		SphereTexture skyBoxImageSphereTexture, int depthLevel) {
 
-		Vector3f returnedColor = new Vector3f();
+		var intersectionResults = rayIntersection(incidentRayOrigin, incidentRayDirection, model.spheres);
+		if (intersectionResults != null) {
+			ModelSphere intersectedSphere = intersectionResults.intersectedSphere;
+			ModelMaterial intersectedSphereMaterial = model.materials.get(intersectedSphere.materialIndex);
+			Vector3f intersectionPoint = intersectionResults.intersectionPoint;
+			Vector3f intersectionNormal = intersectionResults.normal;
+			boolean intersectionFromOutsideOfSphere = intersectionResults.rayFromOutsideOfSphere;
+			SphereTexture intersectedSphereTexture = model.skyBoxImageSphereTextures.get(intersectedSphere.textureIndex);
 
+			Vector3f color = intersectedSphereMaterial.color;
+			float kColor = intersectedSphereMaterial.kColor;
+
+			return new Vector3f(color).mul(kColor);
+		}
+		
+		// If we hit nothing, return skybox
 		return skyBoxImageSphereTexture.sampleDirectionFromMiddle(incidentRayDirection);
 	}
 
@@ -160,11 +174,6 @@ public class WorldModel {
 		// the line point to the closest point on the line to the sphere center
 		float tm = new Vector3f(sphereCenter).sub(rayStart).dot(rayDirection);
 
-		// If the closest point on the line is behind the line point, then there are no
-		// intersection points
-		if (tm < 0)
-			return null;
-
 		// Calculate the distance from the closest point on the line to the sphere
 		// center
 		Vector3f pm = new Vector3f(rayStart).add(new Vector3f(rayDirection).mul(tm));
@@ -180,6 +189,11 @@ public class WorldModel {
 		// intersection points
 		float dt = (float) Math.sqrt(sphereRadius * sphereRadius - pmDistance * pmDistance);
 
+		// If the closest point on the line is behind the line point, then there are no
+		// intersection points
+		if (tm < -dt)
+			return null;
+		
 		// Calculate the intersection points
 		if (tm < dt) {
 			Vector3f firstIntersectionPoint = pm.add(new Vector3f(rayDirection).mul(dt));
@@ -198,7 +212,6 @@ public class WorldModel {
 		}
 	}
 
-
 	/** Finds the nearest intersection between a ray and a list of spheres.
 	 * @param rayStart The starting point of the ray.
 	 * @param rayDirection The normalized direction of the ray.
@@ -207,7 +220,23 @@ public class WorldModel {
 	 *         or an empty IntersectionResults object if no intersection occurs. */	
 	private static IntersectionResults rayIntersection(Vector3f rayStart, Vector3f rayDirection,
 			List<ModelSphere> spheres) {
-		return null;
+		
+		IntersectionResults closest = null;
+		float closestDist = 0;
+
+		for (var sphere : spheres) {
+			var intersectionResults = rayIntersection(rayStart, rayDirection, sphere);
+			if (intersectionResults != null) {
+				Vector3f intersectionPoint = intersectionResults.intersectionPoint;
+				float currDist = intersectionPoint.distance(rayStart);
+				// Check if the current is closer to rayStart, then update the closest
+				if (closest == null || currDist < closestDist) {
+					closest = intersectionResults;
+					closestDist = currDist;
+				}
+			}
+		}
+		return closest;
 	}
 
 	
