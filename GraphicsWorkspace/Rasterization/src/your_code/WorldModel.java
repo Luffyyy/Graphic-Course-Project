@@ -1,6 +1,16 @@
+/**
+ * Handed by:
+ * 
+ * Daniel Rozentsvaig
+ * Tomer Roll
+ * 
+ * lab_7
+ */
+
 package your_code;
 
 import java.nio.IntBuffer;
+import java.util.Random;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -71,23 +81,40 @@ public class WorldModel {
 		intBufferWrapper.imageClear();
 		clearZbuffer();
 		object1.initTransfomations();
+		
+		Random rand = new Random();
 
 		if (exercise.ordinal() == ExerciseEnum.EX_3_1_Object_transformation___translation.ordinal()) {
-
-
-
+			Matrix4f mat = new Matrix4f()
+					.translate(new Vector3f(rand.nextFloat() * 3, rand.nextFloat() * 3, 0));
+			object1.setModelM(mat);
 		}
 	
 		if (exercise.ordinal() == ExerciseEnum.EX_3_2_Object_transformation___scale.ordinal()) {
-			
+
+			float sinWave = 1f + (float)Math.sin((float)counter/6f)*0.1f;
+			Matrix4f mat = new Matrix4f()
+					.translate(new Vector3f(300f, 300f, 0))
+					.scale(sinWave)
+					.translate(new Vector3f(-300f, -300f, 0));
+			object1.setModelM(mat);
 
 
 		}
 
 		if (exercise.ordinal() == ExerciseEnum.EX_3_3_Object_transformation___4_objects.ordinal()) {
+			Matrix4f mat = new Matrix4f().scale(0.5f);
 
-
+			object1.setModelM(mat);
+			object1.render(intBufferWrapper);
 			
+			mat.translate(new Vector3f(0, 600, 0));
+			object1.render(intBufferWrapper);
+			
+			mat.translate(new Vector3f(600, 0, 0));
+			object1.render(intBufferWrapper);
+			
+			mat.translate(new Vector3f(0, -600, 0));
 		}
 
 
