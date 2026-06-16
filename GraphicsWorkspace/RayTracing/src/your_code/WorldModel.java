@@ -1,3 +1,9 @@
+/**
+ * Handed by:
+ * 
+ * Daniel Rozentsvaig
+ * Tomer Roll
+ */
 package your_code;
 
 import java.util.List;
@@ -80,15 +86,27 @@ public class WorldModel {
 		if (exercise == ExerciseEnum.EX_0___Starting_point)
 			return new Vector3f(0);
 		else if (exercise == ExerciseEnum.EX_1_0_Colors_one_color) {
-			return new Vector3f(0);			
+			return new Vector3f(1, 1, 0);			
 		} else if (exercise == ExerciseEnum.EX_1_1_Colors_Random_color) {
-			return new Vector3f(0);			
+			return new Vector3f((float)Math.random(), (float)Math.random(), (float)Math.random());			
 		} else if (exercise == ExerciseEnum.EX_1_2_Colors_Color_space) {
-			return new Vector3f(0);			
+			float w_mat = 1f/(imageWidth-1);
+			float h_mat = 1f/(imageHeight-1);
+			Matrix3f m = new Matrix3f(
+				-w_mat, -h_mat, 1,
+				w_mat, 0, 0,
+				0, h_mat, 0
+			).transpose();
+
+			return m.transform(new Vector3f(x, y, 1));		
 		} else if (exercise == ExerciseEnum.EX_1_3_Colors_linear) {
-			return new Vector3f(0);			
+			var c1 = new Vector3f(1, 1, 0); // Yellow
+			var c2 = new Vector3f(0, 1, 1); // Cyan
+
+			return c1.mul((float)(imageWidth-1-x)/(imageWidth-1)).add(c2.mul((float)x/(imageWidth-1)));
 		} else {
-			return new Vector3f(0);			
+			var dir = calcPixelDirection(x, y, imageWidth, imageHeight, model.fovXdegree);
+			return rayTracing(new Vector3f(), dir, model, skyBoxImageSphereTexture, 0);	
 		}
 	}
 
@@ -104,9 +122,7 @@ public class WorldModel {
 
 		Vector3f returnedColor = new Vector3f();
 
-		
-
-		return returnedColor;
+		return skyBoxImageSphereTexture.sampleDirectionFromMiddle(incidentRayDirection);
 	}
 
 	
@@ -118,9 +134,16 @@ public class WorldModel {
 	 * @param fovXdegree The horizontal field of view in degrees.
 	 * @return The normalized direction vector of the ray for the given pixel. */	
 	static Vector3f calcPixelDirection(int x, int y, int imageWidth, int imageHeight, float fovXdegree) {
-      return new Vector3f(0);
+		double radFovX = Math.toRadians(fovXdegree); // Convert to radians
+		double radFovY = radFovX / imageWidth * imageHeight; // Compute FOV for Y
+		
+		float xLeft = -(float)Math.tan(radFovX /2);
+		float yBottom = -(float)Math.tan(radFovY/2);
+		float xDelta = -2*xLeft / (imageWidth-1);
+		float yDelta = -2*yBottom / (imageHeight-1);
+		
+		return new Vector3f(xLeft + xDelta*x, yBottom + yDelta*y, -1).normalize();
 	}
-
 
 	/** Calculates the intersection(s) between a ray and a sphere.
 	 * @param rayStart The starting point of the ray in world space.
@@ -137,6 +160,11 @@ public class WorldModel {
 		// the line point to the closest point on the line to the sphere center
 		float tm = new Vector3f(sphereCenter).sub(rayStart).dot(rayDirection);
 
+		// If the closest point on the line is behind the line point, then there are no
+		// intersection points
+		if (tm < 0)
+			return null;
+
 		// Calculate the distance from the closest point on the line to the sphere
 		// center
 		Vector3f pm = new Vector3f(rayStart).add(new Vector3f(rayDirection).mul(tm));
@@ -152,11 +180,6 @@ public class WorldModel {
 		// intersection points
 		float dt = (float) Math.sqrt(sphereRadius * sphereRadius - pmDistance * pmDistance);
 
-		// If the closest point on the line is behind the line point, then there are no
-		// intersection points
-		if (tm < -dt)
-			return null;
-		
 		// Calculate the intersection points
 		if (tm < dt) {
 			Vector3f firstIntersectionPoint = pm.add(new Vector3f(rayDirection).mul(dt));
