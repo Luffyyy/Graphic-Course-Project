@@ -115,26 +115,27 @@ public class WorldModel {
 			object1.render(intBufferWrapper);
 			
 			mat.translate(new Vector3f(0, -600, 0));
+			object1.render(intBufferWrapper);
+
+			return;
 		}
 
+		if (exercise.ordinal() > ExerciseEnum.EX_3_3_Object_transformation___4_objects.ordinal()) {			
+			var viewportM = YoursUtilities.createViewportMatrix(0, 0, imageWidth, imageHeight);
+			var lookatM = new Matrix4f().lookAt(cameraPos, cameraLookAtCenter, cameraUp);
+			
+			if (projectionType == ProjectionTypeEnum.ORTHOGRAPHIC) {
+				object1.setProjectionM(new Matrix4f().ortho(-1.5f, 1.5f, -1.5f, 1.5f, 0, 100));
+			}
+			
+			if (projectionType == ProjectionTypeEnum.PERSPECTIVE) {
+				object1.setProjectionM(new Matrix4f().perspective((float) Math.toRadians(30f), 1f, 1f, 100f));
+			}
+			
+			object1.setViewportM(viewportM);
+			object1.setLookatM(lookatM);
+		}		
 
-
-		var viewportM = YoursUtilities.createViewportMatrix(0, 0, imageWidth, imageHeight);
-		var lookatM = new Matrix4f().lookAt(cameraPos, cameraLookAtCenter, cameraUp);
-		
-		if (projectionType == ProjectionTypeEnum.ORTHOGRAPHIC) {
-	        object1.setProjectionM(new Matrix4f().ortho(-1.5f, 1.5f, -1.5f, 1.5f, 0, 100));
-	        object1.setViewportM(viewportM);
-	        object1.setLookatM(lookatM);
-	    }
-
-	    if (projectionType == ProjectionTypeEnum.PERSPECTIVE) {
-	        Matrix4f matProj = new Matrix4f().perspective((float)(30f / 180f * Math.PI), 1f, 1f, 100f);
-	        object1.setProjectionM(matProj);
-	        object1.setViewportM(viewportM);
-	        object1.setLookatM(lookatM);
-	    }
-		
 
 		
 		object1.render(intBufferWrapper);
@@ -143,6 +144,6 @@ public class WorldModel {
 	private void clearZbuffer() {
 		for(int i=0; i<imageHeight; i++)
 			for(int j=0; j<imageWidth; j++)
-				zBuffer[i][j] = 1;
-	}	
+				zBuffer[i][j] = Float.POSITIVE_INFINITY;
+	}
 }
