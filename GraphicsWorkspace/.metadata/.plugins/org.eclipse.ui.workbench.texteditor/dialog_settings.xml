@@ -2,28 +2,28 @@
 <section name="Workbench">
 	<item key="hasShownOverlayPopupBefore" value="true"/>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="shadersProgram"/>
+		<item key="selection" value="orldModel.zBuffer[y][x] ="/>
 		<item key="wrap" value="true"/>
 		<item key="casesensitive" value="false"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
+			<item value="orldModel.zBuffer[y][x] ="/>
+			<item value="&#x09;&#x09;&#x09;&#x09;&#x09;&#x09;&#x09;fragmentData.pixelColor = bc.interpolate(vertex1.color, vertex2.color, vertex3.color);"/>
+			<item value="Initialize a 4D vector from the"/>
+			<item value="modelM.mul"/>
+			<item value="zbu"/>
+			<item value="clearZbuffer"/>
+			<item value="object1.render(intBufferWrapper);"/>
+			<item value="exercise == ExerciseEnum.EX_3_1_Object_transformation___translation"/>
+			<item value="this.zBuffer"/>
 			<item value="shadersProgram"/>
 			<item value="buffer"/>
 			<item value="sendBuffersToOpenGlPipeline"/>
 			<item value="modelUploadingToOpenGlBuffers"/>
 			<item value="glBindVertexArray"/>
 			<item value="vao"/>
-			<item value="pointObjectCoordArray"/>
-			<item value="@Override"/>
-			<item value="getOpenGlPanel"/>
-			<item value="animation"/>
-			<item value="comboAnimation"/>
-			<item value="vs_"/>
-			<item value="handleOpenShaders"/>
-			<item value="shader file"/>
-			<item value="glclearcolor"/>
 		</list>
 		<list key="replacehistory">
 			<item value="GLJPanel"/>
