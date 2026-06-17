@@ -114,8 +114,6 @@ public class WorldModel {
 	 * @param skyBoxImageSphereTexture The texture for the skybox.
 	 * @param depthLevel The current depth level of the recursion (for limiting recursion).
 	 * @return The calculated color for the pixel based on ray tracing and lighting effects. */	
-	private static Vector3f rayTracing(Vector3f incidentRayOrigin, Vector3f incidentRayDirection, Model model,
-		SphereTexture skyBoxImageSphereTexture, int depthLevel) {
 	private static Vector3f rayTracing(
 	        Vector3f incidentRayOrigin,
 	        Vector3f incidentRayDirection,
@@ -325,8 +323,6 @@ public class WorldModel {
 	 * @param Ka The ambient color coefficient of the material.
 	 * @param shininess The shininess parameter for specular highlights.
 	 * @return The calculated lighting as a Vector3f representing color. */	
-	static Vector3f lightingEquation(Vector3f point, Vector3f PointNormal, Vector3f LightPos, Vector3f Kd,
-			Vector3f Ks, Vector3f Ka, float shininess) {
 	static Vector3f lightingEquation(Vector3f point, Vector3f PointNormal, Vector3f LightPos, Vector3f Kd, Vector3f Ks,
 			Vector3f Ka, float shininess) {
 
